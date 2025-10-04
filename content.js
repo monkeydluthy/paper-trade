@@ -294,11 +294,11 @@ class AxiomSnipeInjector {
       display: 'flex',
       'align-items': 'center',
       gap: '4px',
-      'margin-left': '8px',
       transition: 'all 0.2s ease',
       'box-shadow': '0 2px 8px rgba(102, 126, 234, 0.3)',
       'min-width': '80px',
       height: '32px',
+      flex: 'none', // Prevent flex shrinking
     });
 
     // Add hover effect
@@ -323,15 +323,35 @@ class AxiomSnipeInjector {
   }
 
   insertSnipeButton(instantBuyButton, snipeButton) {
-    // Try different insertion methods
+    // Find the parent container and create a flex container for side-by-side layout
     const parent = instantBuyButton.parentNode;
 
     if (parent) {
-      // Method 1: Insert after the instant buy button
-      if (instantBuyButton.nextSibling) {
-        parent.insertBefore(snipeButton, instantBuyButton.nextSibling);
+      // Check if we need to create a flex container
+      const existingFlexContainer = parent.querySelector('.crypto-paper-trader-button-group');
+      
+      if (!existingFlexContainer) {
+        // Create a flex container to hold both buttons side by side
+        const buttonGroup = document.createElement('div');
+        buttonGroup.className = 'crypto-paper-trader-button-group';
+        buttonGroup.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        `;
+
+        // Replace the original button with our flex container
+        parent.replaceChild(buttonGroup, instantBuyButton);
+        
+        // Add the original button back into the flex container
+        buttonGroup.appendChild(instantBuyButton);
+        
+        // Add our snipe button to the flex container
+        buttonGroup.appendChild(snipeButton);
       } else {
-        parent.appendChild(snipeButton);
+        // Flex container already exists, just add our snipe button
+        existingFlexContainer.appendChild(snipeButton);
       }
     }
   }
