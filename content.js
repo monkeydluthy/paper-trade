@@ -472,51 +472,59 @@ class AxiomSnipeInjector {
   }
 
   extractTokenDataFromContext(button) {
-    console.log('🔍 Extracting token data from context...');
-
-    // Try multiple approaches to find token data
-    let tokenData = {
-      symbol: 'Unknown',
-      contractAddress: null,
-      price: null,
-      timestamp: Date.now(),
-      source: 'axiom',
-    };
-
-    // Method 1: Look for closest token container
-    const tokenCard = button.closest(
-      '[class*="card"], [class*="item"], [class*="token"], [class*="row"], [class*="pair"]'
-    );
-
-    if (tokenCard) {
-      console.log('📦 Found token card:', tokenCard);
-      tokenData.symbol = this.extractSymbol(tokenCard) || tokenData.symbol;
-      tokenData.contractAddress =
-        this.extractContractAddress(tokenCard) || tokenData.contractAddress;
-      tokenData.price = this.extractPrice(tokenCard) || tokenData.price;
+    console.log('🔍 Extracting token data from Axiom context...');
+    let tokenData = { symbol: 'Unknown', contractAddress: null, price: null, timestamp: Date.now(), source: 'axiom' };
+    
+    // Method 1: Look for Axiom-specific containers
+    const axiomContainer = button.closest('[class*="grid"], [class*="list"], [class*="item"], [class*="card"], [class*="row"], [class*="pair"], tr, div');
+    console.log('📦 Found Axiom container:', axiomContainer);
+    
+    if (axiomContainer) {
+      // Extract from the container using Axiom-specific methods
+      tokenData.symbol = this.extractSymbolFromAxiom(axiomContainer) || tokenData.symbol;
+      tokenData.contractAddress = this.extractContractFromAxiom(axiomContainer) || tokenData.contractAddress;
+      tokenData.price = this.extractPriceFromAxiom(axiomContainer) || tokenData.price;
     }
 
-    // Method 2: Look in the same row/container as the button
-    const parentRow = button.closest('div[class*="row"], tr, [class*="item"]');
-    if (parentRow && parentRow !== tokenCard) {
-      console.log('📋 Found parent row:', parentRow);
-      const symbol = this.extractSymbol(parentRow);
-      const contractAddress = this.extractContractAddress(parentRow);
-      const price = this.extractPrice(parentRow);
+    // Method 2: Look in parent elements up the DOM tree
+    let currentElement = button.parentElement;
+    for (let i = 0; i < 5 && currentElement; i++) {
+      const symbol = this.extractSymbolFromAxiom(currentElement);
+      const contract = this.extractContractFromAxiom(currentElement);
+      const price = this.extractPriceFromAxiom(currentElement);
 
-      if (symbol && symbol !== 'Unknown') tokenData.symbol = symbol;
-      if (contractAddress) tokenData.contractAddress = contractAddress;
-      if (price) tokenData.price = price;
+      if (symbol && symbol !== 'Unknown' && tokenData.symbol === 'Unknown') {
+        tokenData.symbol = symbol;
+        console.log('✅ Found symbol in parent:', symbol);
+      }
+      if (contract && !tokenData.contractAddress) {
+        tokenData.contractAddress = contract;
+        console.log('✅ Found contract in parent:', contract);
+      }
+      if (price && !tokenData.price) {
+        tokenData.price = price;
+        console.log('✅ Found price in parent:', price);
+      }
+      
+      currentElement = currentElement.parentElement;
     }
 
-    // Method 3: Look for specific Axiom patterns
-    const axiomTokenInfo = this.extractAxiomSpecificData(button);
-    if (axiomTokenInfo.symbol) tokenData.symbol = axiomTokenInfo.symbol;
-    if (axiomTokenInfo.contractAddress)
-      tokenData.contractAddress = axiomTokenInfo.contractAddress;
-    if (axiomTokenInfo.price) tokenData.price = axiomTokenInfo.price;
+    // Method 3: Look for specific Axiom patterns in nearby elements
+    const nearbyElements = [
+      button.parentElement,
+      button.parentElement?.parentElement,
+      button.parentElement?.parentElement?.parentElement,
+      button.parentElement?.parentElement?.parentElement?.parentElement,
+    ].filter(Boolean);
 
-    console.log('✅ Extracted token data:', tokenData);
+    for (const element of nearbyElements) {
+      const axiomData = this.extractAxiomSpecificData(element);
+      if (axiomData.symbol && tokenData.symbol === 'Unknown') tokenData.symbol = axiomData.symbol;
+      if (axiomData.contractAddress && !tokenData.contractAddress) tokenData.contractAddress = axiomData.contractAddress;
+      if (axiomData.price && !tokenData.price) tokenData.price = axiomData.price;
+    }
+
+    console.log('✅ Final extracted token data:', tokenData);
     return tokenData;
   }
 
@@ -755,6 +763,198 @@ class AxiomSnipeInjector {
     }
 
     return null;
+  }
+
+  // Axiom-specific extraction methods
+  extractSymbolFromAxiom(element) {
+    console.log('🔍 Extracting symbol from Axiom element...');
+    
+    // Look for common Axiom patterns
+    const text = element.textContent || '';
+    console.log('📝 Element text:', text.substring(0, 200) + '...');
+    
+    // Axiom-specific patterns for token symbols
+    const symbolPatterns = [
+      /\b([A-Z]{2,10})\b/,                    // Basic uppercase letters
+      /^([A-Z]{2,10})\s/,                     // Start of line
+      /\s([A-Z]{2,10})\s/,                    // Between spaces
+      /([A-Z]{2,10})\//,                      // Before slash
+      /([A-Z]{2,10})-$/,                      // Before dash
+      /([A-Z]{2,10})\$/,                      // Before dollar
+      /([A-Z]{2,10})\s*SOL/,                  // Before SOL
+      /([A-Z]{2,10})\s*USDC/,                 // Before USDC
+    ];
+
+    for (const pattern of symbolPatterns) {
+      const match = text.match(pattern);
+      if (match && !this.isCommonWord(match[1])) {
+        console.log('✅ Found Axiom symbol:', match[1]);
+        return match[1];
+      }
+    }
+
+    // Look in specific elements
+    const symbolSelectors = [
+      'h1', 'h2', 'h3', 'h4',
+      '[class*="title"]',
+      '[class*="name"]',
+      '[class*="symbol"]',
+      '[class*="token"]',
+      'span', 'div', 'p'
+    ];
+
+    for (const selector of symbolSelectors) {
+      const elements = element.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent?.trim();
+        if (text && text.length >= 2 && text.length <= 10) {
+          if (/^[A-Z]+$/.test(text) && !this.isCommonWord(text)) {
+            console.log('✅ Found Axiom symbol via selector:', text);
+            return text;
+          }
+        }
+      }
+    }
+
+    console.log('❌ No symbol found in Axiom element');
+    return null;
+  }
+
+  extractContractFromAxiom(element) {
+    console.log('🔍 Extracting contract from Axiom element...');
+    
+    const text = element.textContent || '';
+    console.log('📝 Element text for contract search:', text.substring(0, 200) + '...');
+    
+    // Axiom-specific contract address patterns
+    const contractPatterns = [
+      /\b([A-Za-z0-9]{32,44})\b/,             // Basic pattern
+      /^([A-Za-z0-9]{32,44})\s/,              // Start of line
+      /\s([A-Za-z0-9]{32,44})\s/,             // Between spaces
+      /([A-Za-z0-9]{32,44})\.\.\./,           // Truncated addresses
+      /([A-Za-z0-9]{32,44})...$/,             // End truncated
+    ];
+
+    for (const pattern of contractPatterns) {
+      const match = text.match(pattern);
+      if (match && this.isValidAddress(match[1])) {
+        console.log('✅ Found Axiom contract via pattern:', match[1]);
+        return match[1];
+      }
+    }
+
+    // Look in specific elements for contract addresses
+    const contractSelectors = [
+      '[class*="address"]',
+      '[class*="contract"]',
+      '[class*="hash"]',
+      '[data-address]',
+      '[data-contract]',
+      'button',
+      'span',
+      'div'
+    ];
+
+    for (const selector of contractSelectors) {
+      const elements = element.querySelectorAll(selector);
+      for (const el of elements) {
+        const address = el.getAttribute('data-address') || 
+                       el.getAttribute('data-contract') || 
+                       el.getAttribute('data-value') ||
+                       el.textContent?.trim();
+        
+        if (address && this.isValidAddress(address)) {
+          console.log('✅ Found Axiom contract via selector:', address);
+          return address;
+        }
+      }
+    }
+
+    console.log('❌ No contract found in Axiom element');
+    return null;
+  }
+
+  extractPriceFromAxiom(element) {
+    console.log('🔍 Extracting price from Axiom element...');
+    
+    const text = element.textContent || '';
+    console.log('📝 Element text for price search:', text.substring(0, 200) + '...');
+    
+    // Axiom-specific price patterns
+    const pricePatterns = [
+      /\$([0-9]+\.?[0-9]*[KMB]?)/,            // $123.45 or $123K
+      /([0-9]+\.?[0-9]*[KMB]?)\s*\$/,         // 123.45$
+      /F=\s*([0-9]+\.?[0-9]*[KMB]?)/,         // F= 123.45
+      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/,       // MC $123.45
+      /Price:\s*\$([0-9]+\.?[0-9]*[KMB]?)/,   // Price: $123.45
+      /\$([0-9]+\.?[0-9]*e?[+-]?[0-9]*)/,     // Scientific notation
+    ];
+
+    for (const pattern of pricePatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        let price = parseFloat(match[1]);
+        // Handle K, M, B suffixes
+        if (text.includes('K')) price *= 1000;
+        if (text.includes('M')) price *= 1000000;
+        if (text.includes('B')) price *= 1000000000;
+        
+        console.log('✅ Found Axiom price via pattern:', price);
+        return price;
+      }
+    }
+
+    // Look in specific price elements
+    const priceSelectors = [
+      '[class*="price"]',
+      '[class*="value"]',
+      '[class*="amount"]',
+      '[class*="cost"]',
+      'span',
+      'div',
+      'p'
+    ];
+
+    for (const selector of priceSelectors) {
+      const elements = element.querySelectorAll(selector);
+      for (const el of elements) {
+        const text = el.textContent?.trim();
+        const priceMatch = text.match(/\$?([0-9]+\.?[0-9]*[KMB]?)/);
+        if (priceMatch) {
+          let price = parseFloat(priceMatch[1]);
+          if (text.includes('K')) price *= 1000;
+          if (text.includes('M')) price *= 1000000;
+          if (text.includes('B')) price *= 1000000000;
+          
+          console.log('✅ Found Axiom price via selector:', price);
+          return price;
+        }
+      }
+    }
+
+    console.log('❌ No price found in Axiom element');
+    return null;
+  }
+
+  isValidAddress(address) {
+    if (!address || typeof address !== 'string') return false;
+    
+    // Ethereum address validation (0x + 40 hex characters)
+    const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+    
+    // Solana address validation (Base58, 32-44 characters)
+    const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    
+    return ethAddressRegex.test(address) || solanaAddressRegex.test(address);
+  }
+
+  isCommonWord(word) {
+    const commonWords = [
+      'BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'USDC', 'MC', 'VOL', 'P', 'Q', 'DS',
+      'Price', 'Amount', 'Contract', 'Address', 'Token', 'Pair', 'Market', 'Volume',
+      'Liquidity', 'Holders', 'Supply', 'Cap', 'Change', 'Percent', 'Total', 'Value'
+    ];
+    return commonWords.includes(word.toUpperCase());
   }
 
   extractAxiomTokenData() {
