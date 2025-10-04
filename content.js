@@ -923,74 +923,78 @@ class AxiomSnipeInjector {
     const text = element.textContent || '';
     console.log('📝 Element text for price search:', text.substring(0, 300) + '...');
     
-    // Axiom-specific price patterns - handle various formats
+    // Axiom-specific price patterns - prioritize market cap and volume
     const pricePatterns = [
-      /\$([0-9]+\.?[0-9]*[KMB]?)/,            // $123.45 or $123K
-      /([0-9]+\.?[0-9]*[KMB]?)\s*\$/,         // 123.45$
-      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/,       // MC $123.45
-      /V\s*\$([0-9]+\.?[0-9]*[KMB]?)/,        // V $123.45
-      /F\s*([0-9]+\.?[0-9]*)/,                // F 8.658 (fees)
-      /TX\s*([0-9]+)/,                        // TX 1467
-      /\$([0-9]+\.?[0-9]*e?[+-]?[0-9]*)/,     // Scientific notation
-      /([0-9]+\.[0-9]+)/,                     // Simple decimal
+      // Market Cap patterns (prioritize these)
+      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,       // MC $4.58M or MC $4580K
+      /Market\s*Cap[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i, // Market Cap: $4.58M
+      /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i,      // MC: 4.58M
+      
+      // Volume patterns
+      /V\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,        // V $157K
+      /Volume[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i, // Volume: $157K
+      
+      // Price patterns (but be more selective)
+      /\$([0-9]+\.?[0-9]*[KMB]?)(?![0-9])/g,   // $123.45 or $123K (not followed by digits)
+      
+      // Avoid patterns that capture huge numbers
+      /TX\s*([0-9]+)/,                        // TX 1467 (skip these)
+      /F\s*([0-9]+\.?[0-9]*)/,                // F 8.658 (skip these)
     ];
 
-    for (const pattern of pricePatterns) {
+    // First, try to find market cap specifically
+    const mcPatterns = [
+      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,
+      /Market\s*Cap[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i,
+      /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i,
+    ];
+
+    for (const pattern of mcPatterns) {
       const match = text.match(pattern);
       if (match) {
         let price = parseFloat(match[1]);
         
-        // Skip very large numbers that are likely not prices
-        if (price > 1000000000) {
-          console.log('⚠️ Skipping large number (likely not a price):', price);
-          continue;
-        }
-        
         // Handle K, M, B suffixes
-        if (text.includes('K')) price *= 1000;
-        if (text.includes('M')) price *= 1000000;
-        if (text.includes('B')) price *= 1000000000;
+        if (match[0].includes('K')) price *= 1000;
+        if (match[0].includes('M')) price *= 1000000;
+        if (match[0].includes('B')) price *= 1000000000;
         
-        // For fees (F), use a reasonable default price
-        if (text.includes('F ') || text.includes('F=')) {
-          price = 0.000001; // Default memecoin price
+        // Market cap should be reasonable (between $1K and $1T)
+        if (price >= 1000 && price <= 1000000000000) {
+          console.log('✅ Found market cap:', price);
+          return price;
         }
-        
-        console.log('✅ Found Axiom price via pattern:', price);
-        return price;
       }
     }
 
-    // Look in specific price elements
-    const priceSelectors = [
-      '[class*="price"]',
-      '[class*="value"]',
-      '[class*="amount"]',
-      '[class*="cost"]',
-      '[class*="mc"]',
-      '[class*="volume"]',
-      'span',
-      'div',
-      'p'
-    ];
-
-    for (const selector of priceSelectors) {
-      const elements = element.querySelectorAll(selector);
-      for (const el of elements) {
-        const text = el.textContent?.trim();
-        const priceMatch = text.match(/\$?([0-9]+\.?[0-9]*[KMB]?)/);
-        if (priceMatch) {
-          let price = parseFloat(priceMatch[1]);
-          
-          // Skip very large numbers
-          if (price > 1000000000) continue;
-          
-          if (text.includes('K')) price *= 1000;
-          if (text.includes('M')) price *= 1000000;
-          if (text.includes('B')) price *= 1000000000;
-          
-          console.log('✅ Found Axiom price via selector:', price);
-          return price;
+    // If no market cap, try other reasonable price patterns
+    for (const pattern of pricePatterns) {
+      const matches = text.match(new RegExp(pattern.source, 'g'));
+      if (matches) {
+        for (const match of matches) {
+          const numberMatch = match.match(/([0-9]+\.?[0-9]*)/);
+          if (numberMatch) {
+            let price = parseFloat(numberMatch[1]);
+            
+            // Skip very large or very small numbers
+            if (price > 1000000000000 || price < 0.000001) {
+              console.log('⚠️ Skipping unreasonable number:', price);
+              continue;
+            }
+            
+            // Handle K, M, B suffixes
+            if (match.includes('K')) price *= 1000;
+            if (match.includes('M')) price *= 1000000;
+            if (match.includes('B')) price *= 1000000000;
+            
+            // Skip transaction counts, fees, etc.
+            if (match.includes('TX') || match.includes('F ') || match.includes('F=')) {
+              continue;
+            }
+            
+            console.log('✅ Found reasonable price:', price);
+            return price;
+          }
         }
       }
     }

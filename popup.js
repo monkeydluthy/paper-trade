@@ -98,6 +98,19 @@ class CryptoPaperTrader {
       .addEventListener('click', () => {
         this.injectSnipeButtons();
       });
+
+    // Listen for portfolio updates from background script
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'portfolioUpdate') {
+        console.log('📊 Portfolio update received:', request.data);
+        // Force reload data and refresh UI
+        this.loadData().then(() => {
+          this.updateUI();
+          this.updatePortfolioView();
+          this.showNotification(`Added ${request.data.symbol} to portfolio!`, 'success');
+        });
+      }
+    });
   }
 
   switchTab(tabName) {
@@ -603,11 +616,13 @@ class CryptoPaperTrader {
 
   getCurrentBalanceSOL() {
     const totalInvestedUSD = Object.values(this.portfolio).reduce(
-      (sum, holding) => sum + holding.totalInvested,
+      (sum, holding) => sum + (holding.totalInvested || 0),
       0
     );
     const totalInvestedSOL = totalInvestedUSD / this.solPriceUSD;
-    return this.settings.startingBalanceSOL - totalInvestedSOL;
+    const currentBalance = this.settings.startingBalanceSOL - totalInvestedSOL;
+    console.log(`💰 Balance calculation: ${this.settings.startingBalanceSOL} SOL - ${totalInvestedSOL.toFixed(4)} SOL = ${currentBalance.toFixed(4)} SOL`);
+    return currentBalance;
   }
 
   getCurrentBalanceUSD() {
