@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=400, initial-scale=1.0" />
+    <title>Crypto Paper Trader</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        width: 400px !important;
+        min-width: 400px !important;
+        max-width: 400px !important;
+      }
+    </style>
+  </head>
+  <body style="width: 400px; min-width: 400px; max-width: 400px">
+    <div class="container">
+      <header class="header">
+        <h1>🚀 Crypto Paper Trader</h1>
+        <div class="balance">
+          <span class="balance-label">Portfolio Value:</span>
+          <span id="portfolioValue" class="balance-value">$0.00</span>
+        </div>
+      </header>
+
+      <div class="tabs">
+        <button class="tab-button active" data-tab="trading">Trading</button>
+        <button class="tab-button" data-tab="portfolio">Portfolio</button>
+        <button class="tab-button" data-tab="snipes">Snipes</button>
+        <button class="tab-button" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Trading Tab -->
+      <div id="trading-tab" class="tab-content active">
+        <div class="search-section">
+          <input
+            type="text"
+            id="coinSearch"
+            placeholder="Search for a coin (DOGE, SHIB) or paste contract address (0x... or Solana address)"
+          />
+          <button id="searchBtn">Search</button>
+          <div class="search-options">
+            <label>
+              <input type="radio" name="searchType" value="symbol" checked />
+              Symbol (DOGE, SHIB)
+            </label>
+            <label>
+              <input type="radio" name="searchType" value="contract" />
+              Contract Address
+            </label>
+          </div>
+        </div>
+
+        <div id="coinInfo" class="coin-info hidden">
+          <div class="coin-header">
+            <span id="coinSymbol"></span>
+            <span id="coinPrice" class="price"></span>
+            <span id="priceChange" class="change"></span>
+          </div>
+          <div class="trading-form">
+            <div class="form-group">
+              <label>Amount to Trade:</label>
+              <input
+                type="number"
+                id="tradeAmount"
+                placeholder="0.00"
+                step="0.000001"
+              />
+            </div>
+            <div class="form-group">
+              <label>Trade Type:</label>
+              <select id="tradeType">
+                <option value="buy">Buy</option>
+                <option value="sell">Sell</option>
+              </select>
+            </div>
+            <button id="executeTrade" class="trade-btn">Execute Trade</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Portfolio Tab -->
+      <div id="portfolio-tab" class="tab-content">
+        <div class="portfolio-stats">
+          <div class="stat">
+            <span class="stat-label">Total Invested:</span>
+            <span id="totalInvested">$0.00</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Current Value:</span>
+            <span id="currentValue">$0.00</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">P&L:</span>
+            <span id="totalPnL" class="pnl">$0.00</span>
+          </div>
+        </div>
+
+        <div class="holdings">
+          <h3>Your Holdings</h3>
+          <div id="holdingsList" class="holdings-list">
+            <!-- Holdings will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Snipes Tab -->
+      <div id="snipes-tab" class="tab-content">
+        <div class="snipes-header">
+          <h3>🎯 Recent Snipes</h3>
+          <button id="injectSnipeButtons" class="snipe-inject-btn">
+            Inject into Axiom
+          </button>
+        </div>
+
+        <div class="snipes-list">
+          <div id="snipesList" class="snipes-container">
+            <!-- Sniped tokens will be populated here -->
+          </div>
+        </div>
+
+        <div class="snipe-info">
+          <p><strong>💡 How it works:</strong></p>
+          <p>1. Click "Inject into Axiom" to add snipe buttons to Axiom</p>
+          <p>2. Visit Axiom's Pulse screen</p>
+          <p>3. Click the 🎯 SNIPE buttons next to instant buy buttons</p>
+          <p>4. Track your snipes here!</p>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-content">
+        <div class="settings-section">
+          <h3>Price Source</h3>
+          <select id="priceSource">
+            <option value="coinmarketcap">CoinMarketCap</option>
+            <option value="coingecko">CoinGecko</option>
+            <option value="manual">Manual Entry</option>
+          </select>
+        </div>
+
+        <div class="settings-section">
+          <h3>Starting Balance</h3>
+          <input
+            type="number"
+            id="startingBalance"
+            placeholder="10000"
+            step="0.01"
+          />
+          <button id="updateBalance">Update Balance</button>
+        </div>
+
+        <div class="settings-section">
+          <h3>Data Management</h3>
+          <button id="clearData" class="danger-btn">Clear All Data</button>
+        </div>
+      </div>
+
+      <div id="notifications" class="notifications"></div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

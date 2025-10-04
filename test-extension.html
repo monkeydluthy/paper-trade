@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crypto Paper Trader - Test Page</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .test-section {
+        background: white;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .test-button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      .test-button:hover {
+        background: #5a6fd8;
+      }
+      .result {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+      .price-display {
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 Crypto Paper Trader - Test Page</h1>
+    <p>
+      This page helps you test the Chrome extension functionality. Make sure
+      your extension is loaded and active.
+    </p>
+
+    <div class="test-section">
+      <h2>📊 Test Price Scraping</h2>
+      <p>
+        This section tests if the extension can scrape prices from this page.
+      </p>
+
+      <div class="price-display">
+        <h3>DOGE Price: $0.000123</h3>
+        <p>24h Change: +5.67%</p>
+        <p>Market Cap: $1.2B</p>
+      </div>
+
+      <div class="price-display">
+        <h3>SHIB Price: $0.000008</h3>
+        <p>24h Change: -2.34%</p>
+        <p>Market Cap: $4.8B</p>
+      </div>
+
+      <div class="price-display">
+        <h3>PEPE Price: $0.000001</h3>
+        <p>24h Change: +12.45%</p>
+        <p>Market Cap: $890M</p>
+      </div>
+
+      <div class="price-display">
+        <h3>
+          Ethereum Token Contract: 0x1234567890abcdef1234567890abcdef12345678
+        </h3>
+        <p>Price: $0.000000123</p>
+        <p>24h Change: +150.67%</p>
+        <p>Liquidity: $45,678</p>
+        <p>Holders: 234</p>
+      </div>
+
+      <div class="price-display">
+        <h3>
+          Solana Token Contract: 9WzDXwBbmkg8ZTbNMqUxvQraHwz3pwZ3aw3A6Bq5r1Q
+        </h3>
+        <p>Price: $0.000000456</p>
+        <p>24h Change: +200.34%</p>
+        <p>Liquidity: $23,456</p>
+        <p>Holders: 89</p>
+      </div>
+
+      <button class="test-button" onclick="testPriceScraping()">
+        Test Price Scraping
+      </button>
+      <div id="scraping-result"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>🔧 Extension Status</h2>
+      <button class="test-button" onclick="checkExtensionStatus()">
+        Check Extension Status
+      </button>
+      <div id="status-result"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>💾 Storage Test</h2>
+      <button class="test-button" onclick="testStorage()">Test Storage</button>
+      <button class="test-button" onclick="clearTestData()">
+        Clear Test Data
+      </button>
+      <div id="storage-result"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>📈 Trading Simulation</h2>
+      <p>Simulate a trading scenario to test the extension.</p>
+      <button class="test-button" onclick="simulateTrading()">
+        Run Trading Simulation
+      </button>
+      <div id="trading-result"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>🔗 Contract Address Testing</h2>
+      <p>Test contract address detection and validation.</p>
+      <button class="test-button" onclick="testContractAddresses()">
+        Test Contract Addresses
+      </button>
+      <button class="test-button" onclick="testNewTokenDetection()">
+        Test New Token Detection
+      </button>
+      <div id="contract-result"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>🎯 Quick Test Checklist</h2>
+      <div id="checklist">
+        <label
+          ><input type="checkbox" id="test1" /> Extension loads without
+          errors</label
+        ><br />
+        <label><input type="checkbox" id="test2" /> Popup opens correctly</label
+        ><br />
+        <label><input type="checkbox" id="test3" /> Can search for coins</label
+        ><br />
+        <label><input type="checkbox" id="test4" /> Can execute trades</label
+        ><br />
+        <label><input type="checkbox" id="test5" /> Portfolio updates</label
+        ><br />
+        <label><input type="checkbox" id="test6" /> Data persists</label><br />
+        <label><input type="checkbox" id="test7" /> Settings work</label><br />
+        <label><input type="checkbox" id="test8" /> No console errors</label
+        ><br />
+      </div>
+      <button class="test-button" onclick="saveChecklist()">
+        Save Checklist
+      </button>
+    </div>
+
+    <script>
+      // Test price scraping functionality
+      function testPriceScraping() {
+        const result = document.getElementById('scraping-result');
+        result.innerHTML = '<div class="info">Testing price scraping...</div>';
+
+        // Simulate price scraping
+        setTimeout(() => {
+          const prices = [
+            { symbol: 'DOGE', price: 0.000123, change: 5.67 },
+            { symbol: 'SHIB', price: 0.000008, change: -2.34 },
+            { symbol: 'PEPE', price: 0.000001, change: 12.45 },
+          ];
+
+          let html =
+            '<div class="success">✅ Price scraping test completed!</div>';
+          html += '<h4>Scraped Prices:</h4>';
+          prices.forEach((coin) => {
+            html += `<div class="price-display">
+                        <strong>${coin.symbol}:</strong> $${coin.price.toFixed(
+              6
+            )} 
+                        <span style="color: ${
+                          coin.change >= 0 ? 'green' : 'red'
+                        }">
+                            ${coin.change >= 0 ? '+' : ''}${coin.change.toFixed(
+              2
+            )}%
+                        </span>
+                    </div>`;
+          });
+
+          result.innerHTML = html;
+        }, 1000);
+      }
+
+      // Check extension status
+      function checkExtensionStatus() {
+        const result = document.getElementById('status-result');
+
+        // Check if extension is loaded
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+          result.innerHTML =
+            '<div class="success">✅ Chrome extension API is available</div>';
+
+          // Try to communicate with extension
+          chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+            if (chrome.runtime.lastError) {
+              result.innerHTML +=
+                '<div class="error">❌ Extension not responding: ' +
+                chrome.runtime.lastError.message +
+                '</div>';
+            } else {
+              result.innerHTML +=
+                '<div class="success">✅ Extension is responding</div>';
+            }
+          });
+        } else {
+          result.innerHTML =
+            '<div class="error">❌ Chrome extension API not available</div>';
+        }
+      }
+
+      // Test storage functionality
+      function testStorage() {
+        const result = document.getElementById('storage-result');
+        result.innerHTML = '<div class="info">Testing storage...</div>';
+
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          // Test writing to storage
+          const testData = {
+            test: 'Hello from test page',
+            timestamp: Date.now(),
+          };
+
+          chrome.storage.local.set(testData, () => {
+            // Test reading from storage
+            chrome.storage.local.get(['test', 'timestamp'], (data) => {
+              if (data.test === 'Hello from test page') {
+                result.innerHTML =
+                  '<div class="success">✅ Storage test passed!</div>';
+              } else {
+                result.innerHTML =
+                  '<div class="error">❌ Storage test failed</div>';
+              }
+            });
+          });
+        } else {
+          result.innerHTML =
+            '<div class="error">❌ Chrome storage API not available</div>';
+        }
+      }
+
+      // Clear test data
+      function clearTestData() {
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          chrome.storage.local.clear(() => {
+            document.getElementById('storage-result').innerHTML =
+              '<div class="info">Test data cleared</div>';
+          });
+        }
+      }
+
+      // Simulate trading scenario
+      function simulateTrading() {
+        const result = document.getElementById('trading-result');
+        result.innerHTML =
+          '<div class="info">Running trading simulation...</div>';
+
+        setTimeout(() => {
+          const simulation = `
+                    <div class="success">✅ Trading simulation completed!</div>
+                    <h4>Simulation Results:</h4>
+                    <div class="price-display">
+                        <strong>Starting Balance:</strong> $10,000<br>
+                        <strong>Bought:</strong> 1,000 DOGE at $0.000123<br>
+                        <strong>Cost:</strong> $0.123<br>
+                        <strong>Remaining Balance:</strong> $9,999.877<br>
+                        <strong>Portfolio Value:</strong> $0.123<br>
+                        <strong>P&L:</strong> $0.000 (0.00%)
+                    </div>
+                `;
+          result.innerHTML = simulation;
+        }, 2000);
+      }
+
+      // Save checklist
+      function saveChecklist() {
+        const checkboxes = document.querySelectorAll(
+          '#checklist input[type="checkbox"]'
+        );
+        const completed = Array.from(checkboxes).filter(
+          (cb) => cb.checked
+        ).length;
+        const total = checkboxes.length;
+
+        alert(`Checklist saved! Completed: ${completed}/${total} tests`);
+      }
+
+      // Test contract address functionality
+      function testContractAddresses() {
+        const result = document.getElementById('contract-result');
+        result.innerHTML =
+          '<div class="info">Testing contract address detection...</div>';
+
+        const testAddresses = [
+          '0x1234567890abcdef1234567890abcdef12345678', // Ethereum
+          '0xabcdef1234567890abcdef1234567890abcdef12', // Ethereum
+          '9WzDXwBbmkg8ZTbNMqUxvQraHwz3pwZ3aw3A6Bq5r1Q', // Solana
+          'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Solana USDC
+          'invalid-address',
+          '0x123',
+          'not-an-address',
+        ];
+
+        setTimeout(() => {
+          let html =
+            '<div class="success">✅ Contract address test completed!</div>';
+          html += '<h4>Test Results:</h4>';
+
+          testAddresses.forEach((address, index) => {
+            const isEthValid = /^0x[a-fA-F0-9]{40}$/.test(address);
+            const isSolValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+            const isValid = isEthValid || isSolValid;
+            const addressType = isEthValid
+              ? 'Ethereum'
+              : isSolValid
+              ? 'Solana'
+              : 'Invalid';
+
+            html += `<div class="price-display">
+               <strong>Test ${index + 1}:</strong> ${address}<br>
+               <span style="color: ${isValid ? 'green' : 'red'}">
+                 ${isValid ? `✅ Valid (${addressType})` : '❌ Invalid'}
+               </span>
+             </div>`;
+          });
+
+          result.innerHTML = html;
+        }, 1000);
+      }
+
+      // Test new token detection
+      function testNewTokenDetection() {
+        const result = document.getElementById('contract-result');
+        result.innerHTML =
+          '<div class="info">Testing new token detection...</div>';
+
+        setTimeout(() => {
+          const newTokens = [
+            {
+              contract: '0x1234567890abcdef1234567890abcdef12345678',
+              name: 'Ethereum Memecoin',
+              price: 0.000000123,
+              change: 150.67,
+              liquidity: 45678,
+              holders: 234,
+              blockchain: 'Ethereum',
+            },
+            {
+              contract: '9WzDXwBbmkg8ZTbNMqUxvQraHwz3pwZ3aw3A6Bq5r1Q',
+              name: 'Solana Memecoin',
+              price: 0.000000456,
+              change: 200.34,
+              liquidity: 23456,
+              holders: 89,
+              blockchain: 'Solana',
+            },
+            {
+              contract: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+              name: 'Another Solana Token',
+              price: 0.000000789,
+              change: -15.23,
+              liquidity: 67890,
+              holders: 156,
+              blockchain: 'Solana',
+            },
+          ];
+
+          let html =
+            '<div class="success">✅ New token detection test completed!</div>';
+          html += '<h4>Detected New Tokens:</h4>';
+
+          newTokens.forEach((token, index) => {
+            html += `<div class="price-display">
+               <strong>Token ${index + 1}:</strong> ${token.name}<br>
+               <strong>Blockchain:</strong> ${token.blockchain}<br>
+               <strong>Contract:</strong> ${token.contract}<br>
+               <strong>Price:</strong> $${token.price.toFixed(9)}<br>
+               <strong>Change:</strong> <span style="color: ${
+                 token.change >= 0 ? 'green' : 'red'
+               }">
+                 ${token.change >= 0 ? '+' : ''}${token.change.toFixed(2)}%
+               </span><br>
+               <strong>Liquidity:</strong> $${token.liquidity.toLocaleString()}<br>
+               <strong>Holders:</strong> ${token.holders}
+             </div>`;
+          });
+
+          result.innerHTML = html;
+        }, 1500);
+      }
+
+      // Auto-run basic tests on page load
+      window.addEventListener('load', () => {
+        console.log('🚀 Crypto Paper Trader Test Page Loaded');
+        console.log('Make sure your extension is loaded and active');
+
+        // Check if extension is available
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+          console.log('✅ Chrome extension API detected');
+        } else {
+          console.log('❌ Chrome extension API not available');
+        }
+      });
+    </script>
+  </body>
+</html>

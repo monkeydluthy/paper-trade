@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Crypto Paper Trader",
+  "version": "1.0.0",
+  "description": "Paper trade crypto with real-time price tracking from various platforms",
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Crypto Paper Trader"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "popup.html",
+        "popup.js",
+        "sidepanel.html",
+        "sidepanel.js",
+        "styles.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

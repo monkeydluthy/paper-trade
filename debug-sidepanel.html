@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug Side Panel</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .debug-info {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .test-button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      .test-button:hover {
+        background: #5a6fd8;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="debug-info">
+      <h1>🔧 Side Panel Debug Test</h1>
+      <p>This page helps test if the side panel is working correctly.</p>
+
+      <h3>Test Steps:</h3>
+      <ol>
+        <li>Click the extension icon in your toolbar</li>
+        <li>Check if it opens as a side panel (should be wider than popup)</li>
+        <li>Look for "SIDE PANEL MODE" indicator in top-left corner</li>
+        <li>Check if the interface looks different from the popup</li>
+      </ol>
+
+      <h3>Expected Behavior:</h3>
+      <ul>
+        <li>✅ Side panel should be wider (500px vs 400px)</li>
+        <li>✅ Should have "SIDE PANEL MODE" indicator</li>
+        <li>✅ Should have view toggle buttons in header</li>
+        <li>✅ Should have enhanced styling</li>
+      </ul>
+
+      <button class="test-button" onclick="testSidePanel()">
+        Test Side Panel
+      </button>
+      <button class="test-button" onclick="checkExtension()">
+        Check Extension
+      </button>
+    </div>
+
+    <div class="debug-info">
+      <h3>Debug Information:</h3>
+      <div id="debug-output"></div>
+    </div>
+
+    <script>
+      function testSidePanel() {
+        const output = document.getElementById('debug-output');
+        output.innerHTML = `
+                <p><strong>Current URL:</strong> ${window.location.href}</p>
+                <p><strong>Window Width:</strong> ${window.innerWidth}px</p>
+                <p><strong>Window Height:</strong> ${window.innerHeight}px</p>
+                <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+                <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
+            `;
+      }
+
+      function checkExtension() {
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+          document.getElementById('debug-output').innerHTML = `
+                    <p style="color: green;">✅ Chrome extension API is available</p>
+                    <p><strong>Extension ID:</strong> ${chrome.runtime.id}</p>
+                `;
+        } else {
+          document.getElementById('debug-output').innerHTML = `
+                    <p style="color: red;">❌ Chrome extension API not available</p>
+                `;
+        }
+      }
+
+      // Auto-run tests on page load
+      window.addEventListener('load', () => {
+        testSidePanel();
+        checkExtension();
+      });
+    </script>
+  </body>
+</html>
+
