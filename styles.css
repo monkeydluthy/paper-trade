@@ -142,6 +142,27 @@ body.sidepanel .sidepanel-container {
   font-weight: bold;
 }
 
+.balance-display {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.balance-value-sol {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1;
+}
+
+.balance-value-usd {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1;
+}
+
 .tabs {
   display: flex;
   background: #f8f9fa;

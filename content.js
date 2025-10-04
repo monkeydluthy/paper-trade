@@ -394,9 +394,12 @@ class AxiomSnipeInjector {
     popup.innerHTML = `
       <h3 style="margin: 0 0 16px 0; color: #667eea;">🎯 Snipe Token</h3>
       <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Buy Amount (SOL):</label>
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Snipe Amount (SOL):</label>
         <input type="number" id="snipeAmount" placeholder="0.1" step="0.01" min="0" 
                style="width: 100%; padding: 8px; border: 1px solid #333; border-radius: 6px; background: #2a2a2a; color: white; font-size: 14px;">
+        <div style="font-size: 11px; color: #999; margin-top: 4px;">
+          Amount will be used directly in Axiom for trading
+        </div>
       </div>
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
         <button id="cancelSnipe" style="padding: 8px 16px; border: 1px solid #666; border-radius: 6px; background: #333; color: white; cursor: pointer;">Cancel</button>

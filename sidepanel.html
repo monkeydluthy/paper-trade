@@ -40,7 +40,10 @@
         </div>
         <div class="balance">
           <span class="balance-label">Portfolio Value:</span>
-          <span id="portfolioValue" class="balance-value">$0.00</span>
+          <div class="balance-display">
+            <span id="portfolioValueSOL" class="balance-value-sol">0.00 SOL</span>
+            <span id="portfolioValueUSD" class="balance-value-usd">$0.00</span>
+          </div>
         </div>
       </header>
 
@@ -154,11 +157,11 @@
         </div>
 
         <div class="settings-section">
-          <h3>Starting Balance</h3>
+          <h3>Starting Balance (SOL)</h3>
           <input
             type="number"
             id="startingBalance"
-            placeholder="10000"
+            placeholder="100"
             step="0.01"
           />
           <button id="updateBalance">Update Balance</button>

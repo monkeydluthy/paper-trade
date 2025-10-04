@@ -4,9 +4,10 @@ class CryptoPaperTrader {
     this.currentCoin = null;
     this.portfolio = {};
     this.settings = {
-      startingBalance: 10000,
+      startingBalanceSOL: 100, // Starting balance in SOL
       priceSource: 'coinmarketcap',
     };
+    this.solPriceUSD = 100; // SOL price in USD (will be fetched)
     this.init();
   }
 
