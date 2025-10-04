@@ -495,6 +495,8 @@ class BackgroundService {
 
   async addSnipeToPortfolio(tokenData) {
     try {
+      console.log('🎯 Adding snipe to portfolio:', tokenData);
+      
       const { portfolio = {}, settings = {} } = await chrome.storage.local.get(['portfolio', 'settings']);
       
       // Get SOL price for calculations
@@ -505,13 +507,23 @@ class BackgroundService {
       const snipeAmountUSD = snipeAmountSOL * solPriceUSD;
       const tokenPrice = tokenData.price || 0.000001; // Default price if not found
 
+      // Handle truncated contract addresses
+      let contractAddress = tokenData.contractAddress;
+      if (contractAddress && contractAddress.includes('...')) {
+        console.log('⚠️ Handling truncated contract address:', contractAddress);
+        // For truncated addresses, we'll store them as-is and try to resolve later
+        contractAddress = contractAddress;
+      }
+
       // Calculate how many tokens we can buy with the snipe amount
       const tokensToBuy = snipeAmountUSD / tokenPrice;
+
+      console.log(`💰 Snipe calculation: ${snipeAmountSOL} SOL = $${snipeAmountUSD.toFixed(2)} = ${tokensToBuy.toFixed(6)} ${symbol} tokens at $${tokenPrice}`);
 
       if (!portfolio[symbol]) {
         portfolio[symbol] = {
           symbol: symbol,
-          contractAddress: tokenData.contractAddress,
+          contractAddress: contractAddress,
           amount: 0,
           avgPrice: 0,
           totalInvested: 0,
@@ -532,6 +544,11 @@ class BackgroundService {
       currentHolding.avgPrice = newTotalInvested / newTotalAmount;
       currentHolding.lastPrice = tokenPrice;
 
+      // Update contract address if we found a better one
+      if (contractAddress && !contractAddress.includes('...')) {
+        currentHolding.contractAddress = contractAddress;
+      }
+
       // Track snipe history
       currentHolding.snipeHistory = currentHolding.snipeHistory || [];
       currentHolding.snipeHistory.push({
@@ -551,6 +568,16 @@ class BackgroundService {
       await chrome.storage.local.set({ portfolio });
       
       console.log(`✅ Added snipe to portfolio: ${tokensToBuy.toFixed(6)} ${symbol} tokens for ${snipeAmountSOL} SOL`);
+      console.log(`📊 Portfolio now has ${Object.keys(portfolio).length} tokens`);
+      
+      // Notify popup/sidepanel to update
+      chrome.runtime.sendMessage({
+        action: 'portfolioUpdate',
+        data: { symbol, tokensToBuy, snipeAmountSOL }
+      }).catch(() => {
+        // Popup might not be open, ignore error
+      });
+      
     } catch (error) {
       console.error('Error adding snipe to portfolio:', error);
     }

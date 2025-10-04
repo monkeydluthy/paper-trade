@@ -85,6 +85,15 @@ class CryptoPaperTraderSidePanel {
       this.clearSnipes();
     });
 
+    // Listen for portfolio updates from background script
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'portfolioUpdate') {
+        console.log('📊 Portfolio update received:', request.data);
+        this.updateUI(); // Refresh the entire UI
+        this.showNotification(`Added ${request.data.symbol} to portfolio!`, 'success');
+      }
+    });
+
     // View preference
     document.getElementById('rememberView').addEventListener('change', (e) => {
       this.settings.rememberView = e.target.checked;
