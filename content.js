@@ -141,6 +141,22 @@ class AxiomSnipeInjector {
     const instantBuyButtons = this.findInstantBuyButtons();
     console.log(`🔍 Found ${instantBuyButtons.length} instant buy buttons`);
 
+    // Debug: Log all buttons found
+    if (instantBuyButtons.length === 0) {
+      console.log('🔍 Debug: No buttons found. Let me check all buttons on page...');
+      const allButtons = document.querySelectorAll('button');
+      console.log(`📊 Total buttons on page: ${allButtons.length}`);
+      
+      // Log first few buttons for debugging
+      Array.from(allButtons).slice(0, 5).forEach((btn, i) => {
+        console.log(`Button ${i}:`, {
+          text: btn.textContent?.trim(),
+          classes: btn.className,
+          tagName: btn.tagName
+        });
+      });
+    }
+
     instantBuyButtons.forEach((button, index) => {
       if (!this.injectedButtons.has(button)) {
         this.injectSnipeButton(button, index);
@@ -199,10 +215,12 @@ class AxiomSnipeInjector {
           text.includes('Trade') ||
           text.includes('0 SOL') ||
           text.includes('1 SOL')) &&
-        this.isInstantBuyButton(button) &&
         !buttons.includes(button)
       ) {
-        buttons.push(button);
+        // For SOL buttons, be more lenient - they're likely trading buttons
+        if (text.includes('SOL') || this.isInstantBuyButton(button)) {
+          buttons.push(button);
+        }
       }
     });
 
@@ -216,16 +234,20 @@ class AxiomSnipeInjector {
     // Only target actual buy/trade buttons, not general token listings
     return (
       element.tagName === 'BUTTON' &&
-      // Has lightning bolt icon (Axiom's instant buy indicator)
-      (element.querySelector('svg[class*="lightning"], svg[class*="bolt"]') ||
+      (
+        // Has lightning bolt icon (Axiom's instant buy indicator)
+        element.querySelector('svg[class*="lightning"], svg[class*="bolt"]') ||
         // Has specific buy/trade text
         (text.includes('Buy') && text.length < 20) ||
         (text.includes('Trade') && text.length < 20) ||
+        // Has SOL text (Axiom trading buttons)
+        (text.includes('SOL') && text.length < 10) ||
         // Has instant/trade classes
         classes.includes('instant') ||
         classes.includes('buy') ||
         classes.includes('trade') ||
-        classes.includes('lightning'))
+        classes.includes('lightning')
+      )
     );
   }
 
