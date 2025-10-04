@@ -15,6 +15,7 @@ class CryptoPaperTrader {
     // Force popup width to 400px
     this.forcePopupWidth();
     await this.loadData();
+    await this.fetchSOLPrice();
     this.setupEventListeners();
     this.updateUI();
     this.startPriceUpdates();
@@ -547,8 +548,8 @@ class CryptoPaperTrader {
 
     // Check if user has enough balance for buy orders
     if (tradeType === 'buy') {
-      const currentBalance = this.getCurrentBalance();
-      if (totalValue > currentBalance) {
+      const currentBalanceUSD = this.getCurrentBalanceUSD();
+      if (totalValue > currentBalanceUSD) {
         this.showNotification('Insufficient balance for this trade', 'error');
         return;
       }
@@ -600,12 +601,17 @@ class CryptoPaperTrader {
     this.saveData();
   }
 
-  getCurrentBalance() {
-    const totalInvested = Object.values(this.portfolio).reduce(
+  getCurrentBalanceSOL() {
+    const totalInvestedUSD = Object.values(this.portfolio).reduce(
       (sum, holding) => sum + holding.totalInvested,
       0
     );
-    return this.settings.startingBalance - totalInvested;
+    const totalInvestedSOL = totalInvestedUSD / this.solPriceUSD;
+    return this.settings.startingBalanceSOL - totalInvestedSOL;
+  }
+
+  getCurrentBalanceUSD() {
+    return this.getCurrentBalanceSOL() * this.solPriceUSD;
   }
 
   getPortfolioValue() {
@@ -627,13 +633,14 @@ class CryptoPaperTrader {
   }
 
   updateBalance() {
-    const portfolioValue = this.getPortfolioValue();
-    const currentBalance = this.getCurrentBalance();
-    const totalValue = portfolioValue + currentBalance;
+    const portfolioValueUSD = this.getPortfolioValue();
+    const currentBalanceSOL = this.getCurrentBalanceSOL();
+    const currentBalanceUSD = this.getCurrentBalanceUSD();
+    const totalValueSOL = currentBalanceSOL + (portfolioValueUSD / this.solPriceUSD);
+    const totalValueUSD = portfolioValueUSD + currentBalanceUSD;
 
-    document.getElementById(
-      'portfolioValue'
-    ).textContent = `$${totalValue.toFixed(2)}`;
+    document.getElementById('portfolioValueSOL').textContent = `${totalValueSOL.toFixed(2)} SOL`;
+    document.getElementById('portfolioValueUSD').textContent = `$${totalValueUSD.toFixed(2)}`;
   }
 
   updatePortfolioView() {
@@ -703,16 +710,16 @@ class CryptoPaperTrader {
   }
 
   async updateStartingBalance() {
-    const newBalance = parseFloat(
+    const newBalanceSOL = parseFloat(
       document.getElementById('startingBalance').value
     );
-    if (newBalance && newBalance > 0) {
-      this.settings.startingBalance = newBalance;
+    if (newBalanceSOL && newBalanceSOL > 0) {
+      this.settings.startingBalanceSOL = newBalanceSOL;
       await this.saveData();
       this.updateUI();
       this.showNotification('Starting balance updated', 'success');
     } else {
-      this.showNotification('Please enter a valid balance', 'warning');
+      this.showNotification('Please enter a valid SOL balance', 'warning');
     }
   }
 
@@ -721,7 +728,7 @@ class CryptoPaperTrader {
       confirm('Are you sure you want to clear all data? This cannot be undone.')
     ) {
       this.portfolio = {};
-      this.settings.startingBalance = 10000;
+      this.settings.startingBalanceSOL = 100;
       await this.saveData();
       this.updateUI();
       this.showNotification('All data cleared', 'success');
@@ -764,11 +771,28 @@ class CryptoPaperTrader {
 
   async loadData() {
     try {
-      const result = await chrome.storage.local.get(['portfolio', 'settings']);
+      const result = await chrome.storage.local.get(['portfolio', 'settings', 'solPriceUSD']);
       this.portfolio = result.portfolio || {};
       this.settings = { ...this.settings, ...result.settings };
+      this.solPriceUSD = result.solPriceUSD || 100;
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  }
+
+  async fetchSOLPrice() {
+    try {
+      // Fetch SOL price from CoinGecko API
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const data = await response.json();
+      this.solPriceUSD = data.solana.usd;
+      
+      // Save SOL price to storage
+      await chrome.storage.local.set({ solPriceUSD: this.solPriceUSD });
+    } catch (error) {
+      console.error('Error fetching SOL price:', error);
+      // Use fallback price if API fails
+      this.solPriceUSD = 100;
     }
   }
 
