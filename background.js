@@ -98,11 +98,12 @@ class BackgroundService {
       // Set default settings on first install
       await chrome.storage.local.set({
         settings: {
-          startingBalance: 10000,
+          startingBalanceSOL: 100, // Starting balance in SOL
           priceSource: 'coinmarketcap',
           updateInterval: 30000,
         },
         portfolio: {},
+        solPriceUSD: 100, // Default SOL price
       });
     }
   }
@@ -494,29 +495,62 @@ class BackgroundService {
 
   async addSnipeToPortfolio(tokenData) {
     try {
-      const { portfolio = {} } = await chrome.storage.local.get(['portfolio']);
+      const { portfolio = {}, settings = {} } = await chrome.storage.local.get(['portfolio', 'settings']);
+      
+      // Get SOL price for calculations
+      const { solPriceUSD = 100 } = await chrome.storage.local.get(['solPriceUSD']);
 
       const symbol = tokenData.symbol || 'UNKNOWN';
+      const snipeAmountSOL = tokenData.amount || 0.1; // Default 0.1 SOL if not specified
+      const snipeAmountUSD = snipeAmountSOL * solPriceUSD;
+      const tokenPrice = tokenData.price || 0.000001; // Default price if not found
+
+      // Calculate how many tokens we can buy with the snipe amount
+      const tokensToBuy = snipeAmountUSD / tokenPrice;
 
       if (!portfolio[symbol]) {
         portfolio[symbol] = {
           symbol: symbol,
           contractAddress: tokenData.contractAddress,
           amount: 0,
-          averagePrice: 0,
+          avgPrice: 0,
           totalInvested: 0,
-          lastPrice: tokenData.price || 0,
+          lastPrice: tokenPrice,
           source: 'snipe',
           firstSeen: Date.now(),
+          snipeHistory: []
         };
       }
 
-      // Update last seen price if available
-      if (tokenData.price) {
-        portfolio[symbol].lastPrice = tokenData.price;
+      // Add the snipe as a buy order
+      const currentHolding = portfolio[symbol];
+      const newTotalAmount = currentHolding.amount + tokensToBuy;
+      const newTotalInvested = currentHolding.totalInvested + snipeAmountUSD;
+
+      currentHolding.amount = newTotalAmount;
+      currentHolding.totalInvested = newTotalInvested;
+      currentHolding.avgPrice = newTotalInvested / newTotalAmount;
+      currentHolding.lastPrice = tokenPrice;
+
+      // Track snipe history
+      currentHolding.snipeHistory = currentHolding.snipeHistory || [];
+      currentHolding.snipeHistory.push({
+        amountSOL: snipeAmountSOL,
+        amountUSD: snipeAmountUSD,
+        tokensReceived: tokensToBuy,
+        price: tokenPrice,
+        timestamp: Date.now(),
+        source: tokenData.source || 'axiom'
+      });
+
+      // Keep only last 10 snipes per token
+      if (currentHolding.snipeHistory.length > 10) {
+        currentHolding.snipeHistory = currentHolding.snipeHistory.slice(-10);
       }
 
       await chrome.storage.local.set({ portfolio });
+      
+      console.log(`✅ Added snipe to portfolio: ${tokensToBuy.toFixed(6)} ${symbol} tokens for ${snipeAmountSOL} SOL`);
     } catch (error) {
       console.error('Error adding snipe to portfolio:', error);
     }

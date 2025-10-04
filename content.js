@@ -523,81 +523,220 @@ class AxiomSnipeInjector {
   extractAxiomSpecificData(button) {
     // Look for Axiom-specific data patterns
     const result = { symbol: null, contractAddress: null, price: null };
-
-    // Look for token symbol in nearby text
+    
+    // Look for token symbol in nearby text - expand search area
     const nearbyElements = [
       button.parentElement,
       button.parentElement?.parentElement,
       button.parentElement?.parentElement?.parentElement,
+      button.parentElement?.parentElement?.parentElement?.parentElement,
     ].filter(Boolean);
+
+    console.log('🔍 Searching for token data in nearby elements:', nearbyElements.length);
 
     for (const element of nearbyElements) {
       const text = element.textContent || '';
+      console.log('📝 Element text:', text.substring(0, 100) + '...');
+      
+      // Look for token symbols - more comprehensive patterns
+      const symbolPatterns = [
+        /\b([A-Z]{2,10})\b/,  // Basic uppercase
+        /^([A-Z]{2,10})\s/,   // Start of line
+        /\s([A-Z]{2,10})\s/,  // Between spaces
+        /([A-Z]{2,10})\//,    // Before slash
+      ];
 
-      // Look for token symbols (uppercase letters, 2-10 chars)
-      const symbolMatch = text.match(/\b([A-Z]{2,10})\b/);
-      if (
-        symbolMatch &&
-        !['BUY', 'SELL', 'TRADE', 'SOL', 'USD'].includes(symbolMatch[1])
-      ) {
-        result.symbol = symbolMatch[1];
+      for (const pattern of symbolPatterns) {
+        const symbolMatch = text.match(pattern);
+        if (
+          symbolMatch &&
+          !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'P', 'Q', 'DS'].includes(symbolMatch[1])
+        ) {
+          result.symbol = symbolMatch[1];
+          console.log('✅ Found symbol:', result.symbol);
+          break;
+        }
       }
 
-      // Look for contract addresses
-      const addressMatch = text.match(/\b([A-Za-z0-9]{32,44})\b/);
-      if (addressMatch) {
-        result.contractAddress = addressMatch[1];
+      // Look for contract addresses - more comprehensive patterns
+      const addressPatterns = [
+        /\b([A-Za-z0-9]{32,44})\b/,  // Basic pattern
+        /^([A-Za-z0-9]{32,44})\s/,   // Start of line
+        /\s([A-Za-z0-9]{32,44})\s/,  // Between spaces
+        /([A-Za-z0-9]{32,44})\.\.\./, // Truncated addresses
+      ];
+
+      for (const pattern of addressPatterns) {
+        const addressMatch = text.match(pattern);
+        if (addressMatch && addressMatch[1].length >= 32) {
+          result.contractAddress = addressMatch[1];
+          console.log('✅ Found contract:', result.contractAddress);
+          break;
+        }
       }
 
-      // Look for prices
-      const priceMatch = text.match(/\$?([0-9]+\.?[0-9]*[KMB]?)/);
-      if (priceMatch) {
-        result.price = parseFloat(priceMatch[1]);
-      }
-    }
+      // Look for prices - more comprehensive patterns
+      const pricePatterns = [
+        /\$([0-9]+\.?[0-9]*[KMB]?)/,     // $123.45 or $123K
+        /F=\s*([0-9]+\.?[0-9]*[KMB]?)/,  // F= 123.45
+        /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/, // MC $123.45
+        /([0-9]+\.?[0-9]*[KMB]?)\s*\$/,   // 123.45$
+      ];
 
-    return result;
-  }
-
-  extractSymbol(element) {
-    // Look for token symbol in various patterns
-    const selectors = [
-      '[class*="symbol"]',
-      '[class*="token"]',
-      'span[class*="text"]',
-      'div[class*="name"]',
-    ];
-
-    for (const selector of selectors) {
-      const el = element.querySelector(selector);
-      if (el && el.textContent) {
-        const text = el.textContent.trim();
-        if (text.length <= 10 && /^[A-Z0-9]+$/.test(text)) {
-          return text;
+      for (const pattern of pricePatterns) {
+        const priceMatch = text.match(pattern);
+        if (priceMatch) {
+          let price = parseFloat(priceMatch[1]);
+          // Handle K, M, B suffixes
+          if (text.includes('K')) price *= 1000;
+          if (text.includes('M')) price *= 1000000;
+          if (text.includes('B')) price *= 1000000000;
+          result.price = price;
+          console.log('✅ Found price:', result.price);
+          break;
         }
       }
     }
 
+    console.log('🎯 Final extracted data:', result);
+    return result;
+  }
+
+  extractSymbol(element) {
+    // Look for token symbol in various patterns - more comprehensive
+    const selectors = [
+      '[class*="symbol"]',
+      '[class*="token"]',
+      '[class*="name"]',
+      '[class*="pair"]',
+      '[class*="title"]',
+      '[data-testid*="symbol"]',
+      '[data-testid*="token"]',
+      '[data-testid*="name"]',
+      'h1', 'h2', 'h3', 'h4',
+      '.title', '.token-name', '.pair-name',
+      'span[class*="text"]',
+      'div[class*="text"]',
+      'p[class*="text"]',
+    ];
+
+    for (const selector of selectors) {
+      const symbolElements = element.querySelectorAll(selector);
+      for (const symbolElement of symbolElements) {
+        const text = symbolElement.textContent?.trim();
+        if (text && text.length >= 2 && text.length <= 10) {
+          // Check if it's a valid token symbol (letters only, not common words)
+          if (/^[A-Za-z]+$/.test(text) && !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'Price', 'Amount', 'Contract', 'Address'].includes(text.toUpperCase())) {
+            console.log('✅ Found symbol via selector:', text.toUpperCase());
+            return text.toUpperCase();
+          }
+        }
+      }
+    }
+
+    // Fallback: look for uppercase text patterns in the element
+    const text = element.textContent || '';
+    const patterns = [
+      /\b([A-Z]{2,10})\b/,           // Basic uppercase
+      /^([A-Z]{2,10})\s/,            // Start of line
+      /\s([A-Z]{2,10})\s/,           // Between spaces
+      /([A-Z]{2,10})\//,             // Before slash
+      /([A-Z]{2,10})-$/,             // Before dash
+      /([A-Z]{2,10})\$/,             // Before dollar
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'P', 'Q', 'DS'].includes(match[1])) {
+        console.log('✅ Found symbol via pattern:', match[1]);
+        return match[1];
+      }
+    }
+
+    console.log('❌ No symbol found in element');
     return 'UNKNOWN';
   }
 
   extractContractAddress(element) {
-    // Look for contract address (copy buttons, links, etc.)
-    const copyButtons = element.querySelectorAll(
-      'button[class*="copy"], [class*="address"]'
-    );
+    // Look for contract address (copy buttons, links, etc.) - more comprehensive
+    const selectors = [
+      'button[class*="copy"]',
+      '[class*="address"]',
+      '[data-address]',
+      '[data-contract]',
+      '[data-testid*="address"]',
+      '[data-testid*="contract"]',
+      'span[class*="text"]',
+      'div[class*="text"]',
+      'p[class*="text"]',
+    ];
 
-    for (const button of copyButtons) {
-      const address =
-        button.getAttribute('data-address') ||
-        button.getAttribute('data-contract') ||
-        button.textContent;
-
-      if (address && (address.startsWith('0x') || address.length >= 32)) {
-        return address;
+    // Check for data attributes first
+    for (const selector of selectors) {
+      const elements = element.querySelectorAll(selector);
+      for (const el of elements) {
+        const address = el.getAttribute('data-address') || 
+                       el.getAttribute('data-contract') || 
+                       el.getAttribute('data-value') ||
+                       el.textContent?.trim();
+        if (address && this.isValidAddress(address)) {
+          console.log('✅ Found contract via selector:', address);
+          return address;
+        }
       }
     }
 
+    // Look for links with addresses
+    const linkSelectors = [
+      'a[href*="solscan"]',
+      'a[href*="etherscan"]',
+      'a[href*="explorer"]',
+      'a[href*="scan"]',
+      'a[href*="address"]',
+    ];
+
+    for (const selector of linkSelectors) {
+      const links = element.querySelectorAll(selector);
+      for (const link of links) {
+        const href = link.getAttribute('href');
+        if (href) {
+          // Extract address from various URL patterns
+          const addressPatterns = [
+            /\/([A-Za-z0-9]{32,44})/,           // Basic pattern
+            /address\/([A-Za-z0-9]{32,44})/,    // /address/...
+            /token\/([A-Za-z0-9]{32,44})/,      // /token/...
+            /contract\/([A-Za-z0-9]{32,44})/,   // /contract/...
+          ];
+
+          for (const pattern of addressPatterns) {
+            const addressMatch = href.match(pattern);
+            if (addressMatch && this.isValidAddress(addressMatch[1])) {
+              console.log('✅ Found contract via link:', addressMatch[1]);
+              return addressMatch[1];
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: search text content for address patterns
+    const text = element.textContent || '';
+    const addressPatterns = [
+      /\b([A-Za-z0-9]{32,44})\b/,     // Basic pattern
+      /^([A-Za-z0-9]{32,44})\s/,      // Start of line
+      /\s([A-Za-z0-9]{32,44})\s/,     // Between spaces
+      /([A-Za-z0-9]{32,44})\.\.\./,   // Truncated addresses
+    ];
+
+    for (const pattern of addressPatterns) {
+      const match = text.match(pattern);
+      if (match && this.isValidAddress(match[1])) {
+        console.log('✅ Found contract via text pattern:', match[1]);
+        return match[1];
+      }
+    }
+
+    console.log('❌ No contract address found in element');
     return null;
   }
 
