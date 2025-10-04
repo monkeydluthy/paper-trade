@@ -137,7 +137,7 @@ class AxiomSnipeInjector {
   injectAllSnipeButtons() {
     console.log('🎯 Injecting snipe buttons into Axiom...');
 
-    // Find all instant buy buttons
+    // Find all instant buy buttons (now grouped by row)
     const instantBuyButtons = this.findInstantBuyButtons();
     console.log(`🔍 Found ${instantBuyButtons.length} instant buy buttons`);
 
@@ -158,73 +158,79 @@ class AxiomSnipeInjector {
     }
 
     instantBuyButtons.forEach((button, index) => {
-      if (!this.injectedButtons.has(button)) {
+      // Find the token row for this button to check if we've already injected
+      const tokenRow = button.closest('[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]') || button.parentElement;
+      
+      // Check if we've already injected into this row
+      if (tokenRow && !this.injectedButtons.has(tokenRow)) {
         this.injectSnipeButton(button, index);
-        this.injectedButtons.add(button);
+        this.injectedButtons.add(tokenRow); // Track by row instead of individual button
       }
     });
 
     console.log(
-      `✅ Injected snipe buttons into ${this.injectedButtons.size} buttons total`
+      `✅ Injected snipe buttons into ${this.injectedButtons.size} token rows total`
     );
   }
 
   findInstantBuyButtons() {
-    // Multiple selectors to find Axiom instant buy buttons
-    const selectors = [
-      // Common button patterns
-      'button[class*="buy"]',
-      'button[class*="instant"]',
-      'button[class*="lightning"]',
-      'button[class*="trade"]',
-      '[class*="buy-button"]',
-      '[class*="instant-trade"]',
-      '[class*="lightning"]',
-
-      // Icon-based selectors (lightning bolt)
-      'button svg[class*="lightning"]',
-      'button svg[class*="bolt"]',
-      'button [class*="lightning"]',
-      'button [class*="bolt"]',
-    ];
-
-    const buttons = [];
-
-    // First, find buttons using CSS selectors
-    selectors.forEach((selector) => {
-      try {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach((element) => {
-          if (this.isInstantBuyButton(element) && !buttons.includes(element)) {
-            buttons.push(element);
-          }
-        });
-      } catch (error) {
-        // Some selectors might not be supported in all browsers
-        console.warn(`Selector ${selector} not supported:`, error);
-      }
-    });
-
-    // Then, find buttons using text-based search
+    // Find all buttons that could be trading buttons
     const allButtons = document.querySelectorAll('button');
+    const potentialButtons = [];
+
     allButtons.forEach((button) => {
       const text = button.textContent || button.innerText || '';
       if (
-        (text.includes('SOL') ||
-          text.includes('Buy') ||
-          text.includes('Trade') ||
-          text.includes('0 SOL') ||
-          text.includes('1 SOL')) &&
-        !buttons.includes(button)
+        text.includes('SOL') ||
+        text.includes('Buy') ||
+        text.includes('Trade') ||
+        text.includes('0 SOL') ||
+        text.includes('1 SOL') ||
+        this.isInstantBuyButton(button)
       ) {
-        // For SOL buttons, be more lenient - they're likely trading buttons
-        if (text.includes('SOL') || this.isInstantBuyButton(button)) {
-          buttons.push(button);
-        }
+        potentialButtons.push(button);
       }
     });
 
-    return buttons;
+    // Group buttons by their parent token row to avoid multiple injections per row
+    const buttonsByRow = new Map();
+    
+    potentialButtons.forEach((button) => {
+      // Find the token row container (look for common patterns)
+      const tokenRow = button.closest('[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]') || button.parentElement;
+      
+      if (tokenRow) {
+        // Use the token row as the key
+        const rowKey = tokenRow;
+        
+        if (!buttonsByRow.has(rowKey)) {
+          buttonsByRow.set(rowKey, []);
+        }
+        buttonsByRow.get(rowKey).push(button);
+      }
+    });
+
+    // Return only one button per row (prefer the first/most relevant one)
+    const finalButtons = [];
+    buttonsByRow.forEach((buttonsInRow, rowKey) => {
+      // Prefer buttons with SOL text, then Buy/Trade, then others
+      const sortedButtons = buttonsInRow.sort((a, b) => {
+        const aText = a.textContent || '';
+        const bText = b.textContent || '';
+        
+        if (aText.includes('SOL') && !bText.includes('SOL')) return -1;
+        if (!aText.includes('SOL') && bText.includes('SOL')) return 1;
+        if (aText.includes('Buy') && !bText.includes('Buy')) return -1;
+        if (!aText.includes('Buy') && bText.includes('Buy')) return 1;
+        return 0;
+      });
+      
+      // Take only the first (most relevant) button from each row
+      finalButtons.push(sortedButtons[0]);
+    });
+
+    console.log(`🔍 Found ${potentialButtons.length} potential buttons, grouped into ${finalButtons.length} rows`);
+    return finalButtons;
   }
 
   isInstantBuyButton(element) {
