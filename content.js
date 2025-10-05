@@ -793,6 +793,12 @@ class AxiomSnipeInjector {
     
     // Look for token name patterns first (prioritize these)
     const tokenNamePatterns = [
+      // Specific Axiom patterns from the logs
+      /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i,              // "SOL Speed Of Light"
+      /([A-Z][a-zA-Z]+)\s+Of\s+Light/i,                      // "SOL Of Light"
+      /([A-Z][a-zA-Z]+)\s+Inconvenience/i,                   // "BNB Inconvenience"
+      
+      // General patterns
       /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Coin/i,  // "Inconvenience Coin", "Bitcoin Coin"
       /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Token/i, // "Inconvenience Token"
       /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+MC\$/i,  // "BNB Inconvenience Coin MC$21.1K"
@@ -813,7 +819,7 @@ class AxiomSnipeInjector {
           if (words.length > 1) {
             // Take first word if it's reasonable, otherwise create acronym
             const firstWord = words[0];
-            if (firstWord.length >= 3 && firstWord.length <= 8) {
+            if (firstWord.length >= 2 && firstWord.length <= 8) {
               symbol = firstWord;
             } else {
               // Create acronym from first letters
@@ -821,6 +827,8 @@ class AxiomSnipeInjector {
             }
           }
         }
+        
+        console.log(`🔍 Processing token name: ${match[1]} → ${symbol}`);
         
         // Filter out common words and invalid symbols
         if (!this.isCommonWord(symbol) && 
@@ -1013,25 +1021,24 @@ class AxiomSnipeInjector {
     for (const pattern of mcPatterns) {
       const match = text.match(pattern);
       if (match) {
+        console.log(`🔍 MC Pattern match: ${match[0]} -> ${match[1]}`);
+        
         let price = parseFloat(match[1]);
+        const originalPrice = price;
         
-        // Handle K, M, B suffixes
-        if (match[0].toUpperCase().includes('K')) price *= 1000;
-        if (match[0].toUpperCase().includes('M')) price *= 1000000;
-        if (match[0].toUpperCase().includes('B')) price *= 1000000000;
+        // Handle K, M, B suffixes based on the captured value, not the full match
+        if (match[1].toUpperCase().includes('K')) price *= 1000;
+        if (match[1].toUpperCase().includes('M')) price *= 1000000;
+        if (match[1].toUpperCase().includes('B')) price *= 1000000000;
         
-        console.log(`💰 Market cap calculation: ${match[1]} → ${price} (${match[0]})`);
-        
-        // Ensure we don't have ridiculously large numbers
-        if (price > 1000000000000) {
-          console.log(`⚠️ Price too large, adjusting: ${price} → ${price / 1000000000000}T`);
-          price = price / 1000000000000;
-        }
+        console.log(`💰 Market cap calculation: ${originalPrice} → ${price} (${match[1]})`);
         
         // Market cap should be reasonable (between $1K and $1T)
         if (price >= 1000 && price <= 1000000000000) {
           console.log('✅ Found market cap:', price);
           return price;
+        } else {
+          console.log(`⚠️ Market cap out of range: ${price}`);
         }
       }
     }
