@@ -95,6 +95,14 @@ class CryptoPaperTraderSidePanel {
           this.updatePortfolioView();
           this.showNotification(`Added ${request.data.symbol} to portfolio!`, 'success');
         });
+      } else if (request.action === 'priceUpdate') {
+        console.log('📈 Price update received:', request.data);
+        // Update the UI when prices change
+        this.loadData().then(() => {
+          this.updateUI();
+          this.updatePortfolioView();
+          this.showNotification(`${request.data.symbol} price updated: ${this.formatPrice(request.data.oldPrice)} → ${this.formatPrice(request.data.newPrice)}`, 'info');
+        });
       }
     });
 
@@ -702,6 +710,24 @@ class CryptoPaperTraderSidePanel {
     this.updateHoldingsList();
   }
 
+  formatPrice(price) {
+    if (!price || price === 0) return '$0';
+    
+    const absPrice = Math.abs(price);
+    
+    if (absPrice >= 1000000000) {
+      return `$${(price / 1000000000).toFixed(1)}B`;
+    } else if (absPrice >= 1000000) {
+      return `$${(price / 1000000).toFixed(1)}M`;
+    } else if (absPrice >= 1000) {
+      return `$${(price / 1000).toFixed(1)}K`;
+    } else if (absPrice >= 1) {
+      return `$${price.toFixed(2)}`;
+    } else {
+      return `$${price.toFixed(6)}`;
+    }
+  }
+
   updateHoldingsList() {
     console.log('📈 Updating holdings list with portfolio:', this.portfolio);
     
@@ -737,13 +763,11 @@ class CryptoPaperTraderSidePanel {
                     )} coins</div>
                 </div>
                 <div>
-                    <div class="holding-value">$${currentValue.toFixed(2)}</div>
+                    <div class="holding-value">${this.formatPrice(currentValue)}</div>
                     <div class="holding-pnl ${
                       pnl >= 0 ? 'positive' : 'negative'
                     }">
-                        ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(
-        2
-      )} (${pnlPercent.toFixed(1)}%)
+                        ${pnl >= 0 ? '+' : ''}${this.formatPrice(pnl)} (${pnlPercent.toFixed(1)}%)
                     </div>
                 </div>
             `;

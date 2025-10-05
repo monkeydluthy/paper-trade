@@ -109,6 +109,14 @@ class CryptoPaperTrader {
           this.updatePortfolioView();
           this.showNotification(`Added ${request.data.symbol} to portfolio!`, 'success');
         });
+      } else if (request.action === 'priceUpdate') {
+        console.log('📈 Price update received:', request.data);
+        // Update the UI when prices change
+        this.loadData().then(() => {
+          this.updateUI();
+          this.updatePortfolioView();
+          this.showNotification(`${request.data.symbol} price updated: ${this.formatPrice(request.data.oldPrice)} → ${this.formatPrice(request.data.newPrice)}`, 'info');
+        });
       }
     });
   }
@@ -647,6 +655,24 @@ class CryptoPaperTrader {
     this.updatePortfolioView();
   }
 
+  formatPrice(price) {
+    if (!price || price === 0) return '$0';
+    
+    const absPrice = Math.abs(price);
+    
+    if (absPrice >= 1000000000) {
+      return `$${(price / 1000000000).toFixed(1)}B`;
+    } else if (absPrice >= 1000000) {
+      return `$${(price / 1000000).toFixed(1)}M`;
+    } else if (absPrice >= 1000) {
+      return `$${(price / 1000).toFixed(1)}K`;
+    } else if (absPrice >= 1) {
+      return `$${price.toFixed(2)}`;
+    } else {
+      return `$${price.toFixed(6)}`;
+    }
+  }
+
   updateBalance() {
     const portfolioValueUSD = this.getPortfolioValue();
     const currentBalanceSOL = this.getCurrentBalanceSOL();
@@ -655,7 +681,7 @@ class CryptoPaperTrader {
     const totalValueUSD = portfolioValueUSD + currentBalanceUSD;
 
     document.getElementById('portfolioValueSOL').textContent = `${totalValueSOL.toFixed(2)} SOL`;
-    document.getElementById('portfolioValueUSD').textContent = `$${totalValueUSD.toFixed(2)}`;
+    document.getElementById('portfolioValueUSD').textContent = `${this.formatPrice(totalValueUSD)}`;
   }
 
   updatePortfolioView() {

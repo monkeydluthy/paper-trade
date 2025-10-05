@@ -534,7 +534,8 @@ class BackgroundService {
           lastPrice: tokenPrice,
           source: 'snipe',
           firstSeen: Date.now(),
-          snipeHistory: []
+          snipeHistory: [],
+          priceUpdateInterval: null // For real-time price updates
         };
         console.log('🆕 Created new portfolio entry for:', symbol);
       }
@@ -570,6 +571,9 @@ class BackgroundService {
         currentHolding.snipeHistory = currentHolding.snipeHistory.slice(-10);
       }
 
+      // Start real-time price updates for this token
+      this.startPriceUpdates(symbol, contractAddress);
+
       console.log('💾 Saving portfolio to storage...');
       await chrome.storage.local.set({ portfolio });
       
@@ -590,6 +594,121 @@ class BackgroundService {
       
     } catch (error) {
       console.error('Error adding snipe to portfolio:', error);
+    }
+  }
+
+  startPriceUpdates(symbol, contractAddress) {
+    console.log(`🔄 Starting price updates for ${symbol} (${contractAddress})`);
+    
+    // Clear any existing interval for this token
+    const { portfolio = {} } = chrome.storage.local.get(['portfolio']);
+    if (portfolio[symbol] && portfolio[symbol].priceUpdateInterval) {
+      clearInterval(portfolio[symbol].priceUpdateInterval);
+    }
+    
+    // Update price every 30 seconds
+    const intervalId = setInterval(async () => {
+      try {
+        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+        if (newPrice && newPrice > 0) {
+          await this.updateTokenPrice(symbol, newPrice);
+        }
+      } catch (error) {
+        console.error(`Error updating price for ${symbol}:`, error);
+      }
+    }, 30000); // 30 seconds
+    
+    // Store interval ID in portfolio
+    chrome.storage.local.get(['portfolio'], (result) => {
+      const portfolio = result.portfolio || {};
+      if (portfolio[symbol]) {
+        portfolio[symbol].priceUpdateInterval = intervalId;
+        chrome.storage.local.set({ portfolio });
+      }
+    });
+  }
+
+  async fetchTokenPrice(symbol, contractAddress) {
+    try {
+      console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
+      
+      // Try Pump.fun API first
+      if (contractAddress && !contractAddress.includes('...')) {
+        try {
+          const response = await fetch(`https://frontend-api.pump.fun/coins/${contractAddress}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.usd_market_cap) {
+              console.log(`✅ Pump.fun price for ${symbol}: $${data.usd_market_cap}`);
+              return data.usd_market_cap;
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ Pump.fun API failed for ${symbol}:`, error.message);
+        }
+      }
+      
+      // Fallback: Try to scrape from Axiom page
+      try {
+        const response = await fetch('https://axiom.trade/pulse', {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/html',
+          }
+        });
+        
+        if (response.ok) {
+          const html = await response.text();
+          // Look for the token in the HTML and extract price
+          const priceMatch = html.match(new RegExp(`${symbol}[^>]*MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'));
+          if (priceMatch) {
+            let price = parseFloat(priceMatch[1]);
+            if (priceMatch[0].includes('K')) price *= 1000;
+            if (priceMatch[0].includes('M')) price *= 1000000;
+            if (priceMatch[0].includes('B')) price *= 1000000000;
+            console.log(`✅ Axiom scraped price for ${symbol}: $${price}`);
+            return price;
+          }
+        }
+      } catch (error) {
+        console.log(`⚠️ Axiom scraping failed for ${symbol}:`, error.message);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error fetching price for ${symbol}:`, error);
+      return null;
+    }
+  }
+
+  async updateTokenPrice(symbol, newPrice) {
+    try {
+      const { portfolio = {} } = await chrome.storage.local.get(['portfolio']);
+      
+      if (portfolio[symbol]) {
+        const oldPrice = portfolio[symbol].lastPrice;
+        portfolio[symbol].lastPrice = newPrice;
+        
+        await chrome.storage.local.set({ portfolio });
+        
+        console.log(`📈 Updated ${symbol} price: $${oldPrice} → $${newPrice}`);
+        
+        // Notify UI of price update
+        chrome.runtime.sendMessage({
+          action: 'priceUpdate',
+          data: { symbol, oldPrice, newPrice }
+        }).catch(() => {
+          // Popup might not be open, ignore error
+        });
+      }
+    } catch (error) {
+      console.error(`Error updating token price for ${symbol}:`, error);
     }
   }
 

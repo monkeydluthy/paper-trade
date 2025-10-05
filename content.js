@@ -1120,6 +1120,24 @@ class AxiomSnipeInjector {
     return ethAddressRegex.test(address) || solanaAddressRegex.test(address);
   }
 
+  formatPrice(price) {
+    if (!price || price === 0) return '$0';
+    
+    const absPrice = Math.abs(price);
+    
+    if (absPrice >= 1000000000) {
+      return `$${(price / 1000000000).toFixed(1)}B`;
+    } else if (absPrice >= 1000000) {
+      return `$${(price / 1000000).toFixed(1)}M`;
+    } else if (absPrice >= 1000) {
+      return `$${(price / 1000).toFixed(1)}K`;
+    } else if (absPrice >= 1) {
+      return `$${price.toFixed(2)}`;
+    } else {
+      return `$${price.toFixed(6)}`;
+    }
+  }
+
   isCommonWord(word) {
     const commonWords = [
       'BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'USDC', 'MC', 'VOL', 'P', 'Q', 'DS',
