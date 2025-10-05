@@ -498,14 +498,18 @@ class BackgroundService {
       console.log('🎯 Adding snipe to portfolio:', tokenData);
       
       const { portfolio = {}, settings = {} } = await chrome.storage.local.get(['portfolio', 'settings']);
+      console.log('📊 Current portfolio before adding snipe:', portfolio);
       
       // Get SOL price for calculations
       const { solPriceUSD = 100 } = await chrome.storage.local.get(['solPriceUSD']);
+      console.log('💱 SOL price USD:', solPriceUSD);
 
       const symbol = tokenData.symbol || 'UNKNOWN';
       const snipeAmountSOL = tokenData.amount || 0.1; // Default 0.1 SOL if not specified
       const snipeAmountUSD = snipeAmountSOL * solPriceUSD;
       const tokenPrice = tokenData.price || 0.000001; // Default price if not found
+
+      console.log(`💰 Snipe details: Symbol=${symbol}, Amount=${snipeAmountSOL} SOL, Price=$${tokenPrice}`);
 
       // Handle truncated contract addresses
       let contractAddress = tokenData.contractAddress;
@@ -532,6 +536,7 @@ class BackgroundService {
           firstSeen: Date.now(),
           snipeHistory: []
         };
+        console.log('🆕 Created new portfolio entry for:', symbol);
       }
 
       // Add the snipe as a buy order
@@ -565,10 +570,15 @@ class BackgroundService {
         currentHolding.snipeHistory = currentHolding.snipeHistory.slice(-10);
       }
 
+      console.log('💾 Saving portfolio to storage...');
       await chrome.storage.local.set({ portfolio });
       
+      // Verify the save worked
+      const { portfolio: savedPortfolio } = await chrome.storage.local.get(['portfolio']);
+      console.log('✅ Portfolio saved successfully:', savedPortfolio);
+      
       console.log(`✅ Added snipe to portfolio: ${tokensToBuy.toFixed(6)} ${symbol} tokens for ${snipeAmountSOL} SOL`);
-      console.log(`📊 Portfolio now has ${Object.keys(portfolio).length} tokens`);
+      console.log(`📊 Portfolio now has ${Object.keys(savedPortfolio).length} tokens`);
       
       // Notify popup/sidepanel to update
       chrome.runtime.sendMessage({

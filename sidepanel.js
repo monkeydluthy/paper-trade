@@ -677,12 +677,16 @@ class CryptoPaperTraderSidePanel {
   }
 
   updatePortfolioView() {
+    console.log('📊 Updating portfolio view with data:', this.portfolio);
+    
     const totalInvested = Object.values(this.portfolio).reduce(
-      (sum, holding) => sum + holding.totalInvested,
+      (sum, holding) => sum + (holding.totalInvested || 0),
       0
     );
     const currentValue = this.getPortfolioValue();
     const pnl = currentValue - totalInvested;
+
+    console.log(`💰 Portfolio calculations: Total Invested=$${totalInvested.toFixed(2)}, Current Value=$${currentValue.toFixed(2)}, P&L=$${pnl.toFixed(2)}`);
 
     document.getElementById(
       'totalInvested'
@@ -699,10 +703,15 @@ class CryptoPaperTraderSidePanel {
   }
 
   updateHoldingsList() {
+    console.log('📈 Updating holdings list with portfolio:', this.portfolio);
+    
     const holdingsList = document.getElementById('holdingsList');
     holdingsList.innerHTML = '';
 
+    console.log(`📈 Portfolio has ${Object.keys(this.portfolio).length} holdings`);
+
     if (Object.keys(this.portfolio).length === 0) {
+      console.log('📈 No holdings found, showing empty message');
       holdingsList.innerHTML =
         '<p style="text-align: center; color: #6c757d; padding: 20px;">No holdings yet</p>';
       return;
