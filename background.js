@@ -601,30 +601,48 @@ class BackgroundService {
     console.log(`🔄 Starting price updates for ${symbol} (${contractAddress})`);
     
     // Clear any existing interval for this token
-    const { portfolio = {} } = chrome.storage.local.get(['portfolio']);
-    if (portfolio[symbol] && portfolio[symbol].priceUpdateInterval) {
-      clearInterval(portfolio[symbol].priceUpdateInterval);
-    }
-    
-    // Update price every 30 seconds
-    const intervalId = setInterval(async () => {
-      try {
-        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
-        if (newPrice && newPrice > 0) {
-          await this.updateTokenPrice(symbol, newPrice);
-        }
-      } catch (error) {
-        console.error(`Error updating price for ${symbol}:`, error);
-      }
-    }, 30000); // 30 seconds
-    
-    // Store interval ID in portfolio
     chrome.storage.local.get(['portfolio'], (result) => {
       const portfolio = result.portfolio || {};
-      if (portfolio[symbol]) {
-        portfolio[symbol].priceUpdateInterval = intervalId;
-        chrome.storage.local.set({ portfolio });
+      if (portfolio[symbol] && portfolio[symbol].priceUpdateInterval) {
+        clearInterval(portfolio[symbol].priceUpdateInterval);
+        console.log(`🔄 Cleared existing interval for ${symbol}`);
       }
+      
+      // Update price every 30 seconds
+      const intervalId = setInterval(async () => {
+        try {
+          console.log(`📡 Fetching price update for ${symbol}...`);
+          const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+          if (newPrice && newPrice > 0) {
+            console.log(`📈 New price for ${symbol}: $${newPrice}`);
+            await this.updateTokenPrice(symbol, newPrice);
+          } else {
+            console.log(`⚠️ No valid price update for ${symbol}`);
+          }
+        } catch (error) {
+          console.error(`Error updating price for ${symbol}:`, error);
+        }
+      }, 30000); // 30 seconds
+      
+      // Store interval ID in portfolio
+      portfolio[symbol] = portfolio[symbol] || {};
+      portfolio[symbol].priceUpdateInterval = intervalId;
+      chrome.storage.local.set({ portfolio });
+      
+      console.log(`✅ Price update interval started for ${symbol} (ID: ${intervalId})`);
+      
+      // Do an immediate price fetch
+      setTimeout(async () => {
+        try {
+          console.log(`🚀 Immediate price fetch for ${symbol}...`);
+          const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+          if (newPrice && newPrice > 0) {
+            await this.updateTokenPrice(symbol, newPrice);
+          }
+        } catch (error) {
+          console.error(`Error in immediate price fetch for ${symbol}:`, error);
+        }
+      }, 2000); // 2 seconds delay for immediate fetch
     });
   }
 
@@ -632,9 +650,10 @@ class BackgroundService {
     try {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
       
-      // Try Pump.fun API first
+      // Try Pump.fun API first (only for full contract addresses)
       if (contractAddress && !contractAddress.includes('...')) {
         try {
+          console.log(`🔍 Trying Pump.fun API for ${symbol}...`);
           const response = await fetch(`https://frontend-api.pump.fun/coins/${contractAddress}`, {
             method: 'GET',
             headers: {
@@ -647,15 +666,22 @@ class BackgroundService {
             if (data.usd_market_cap) {
               console.log(`✅ Pump.fun price for ${symbol}: $${data.usd_market_cap}`);
               return data.usd_market_cap;
+            } else {
+              console.log(`⚠️ Pump.fun API returned no market cap for ${symbol}`);
             }
+          } else {
+            console.log(`⚠️ Pump.fun API returned ${response.status} for ${symbol}`);
           }
         } catch (error) {
           console.log(`⚠️ Pump.fun API failed for ${symbol}:`, error.message);
         }
+      } else {
+        console.log(`⚠️ Skipping Pump.fun API for ${symbol} - truncated contract address`);
       }
       
       // Fallback: Try to scrape from Axiom page
       try {
+        console.log(`🔍 Trying Axiom scraping for ${symbol}...`);
         const response = await fetch('https://axiom.trade/pulse', {
           method: 'GET',
           headers: {
@@ -665,6 +691,8 @@ class BackgroundService {
         
         if (response.ok) {
           const html = await response.text();
+          console.log(`📄 Axiom page loaded, searching for ${symbol}...`);
+          
           // Look for the token in the HTML and extract price
           const priceMatch = html.match(new RegExp(`${symbol}[^>]*MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'));
           if (priceMatch) {
@@ -674,12 +702,17 @@ class BackgroundService {
             if (priceMatch[0].includes('B')) price *= 1000000000;
             console.log(`✅ Axiom scraped price for ${symbol}: $${price}`);
             return price;
+          } else {
+            console.log(`⚠️ No price match found for ${symbol} in Axiom HTML`);
           }
+        } else {
+          console.log(`⚠️ Axiom page returned ${response.status}`);
         }
       } catch (error) {
         console.log(`⚠️ Axiom scraping failed for ${symbol}:`, error.message);
       }
       
+      console.log(`❌ No price found for ${symbol}`);
       return null;
     } catch (error) {
       console.error(`Error fetching price for ${symbol}:`, error);

@@ -917,7 +917,7 @@ class CryptoPaperTrader {
           <div class="snipe-detail">
             <span class="snipe-detail-label">Price</span>
             <span class="snipe-detail-value">${
-              snipe.price ? '$' + snipe.price : 'N/A'
+              this.formatPrice(snipe.price || 0)
             }</span>
           </div>
         </div>

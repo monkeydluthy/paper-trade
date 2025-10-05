@@ -955,7 +955,7 @@ class CryptoPaperTraderSidePanel {
         </div>
         <div class="snipe-details">
           <div class="snipe-info">
-            <span class="snipe-price">$${snipe.price || 'N/A'}</span>
+            <span class="snipe-price">${this.formatPrice(snipe.price || 0)}</span>
             <span class="snipe-source">${snipe.source}</span>
           </div>
           <div class="snipe-actions">
