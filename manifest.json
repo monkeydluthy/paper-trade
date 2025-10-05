@@ -4,7 +4,14 @@
   "version": "1.0.0",
   "description": "Paper trade crypto with real-time price tracking from various platforms",
   "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
-  "host_permissions": ["https://*/*", "http://*/*"],
+  "host_permissions": [
+    "https://*/*", 
+    "http://*/*",
+    "https://api.pumpportal.fun/*",
+    "https://price.jup.ag/*",
+    "https://frontend-api.pump.fun/*",
+    "https://api.coingecko.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Crypto Paper Trader"

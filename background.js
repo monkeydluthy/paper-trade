@@ -84,6 +84,11 @@ class BackgroundService {
           sendResponse({ success: true, data: injectResult });
           break;
 
+        case 'testPumpPortal':
+          const isConnected = await this.testPumpPortalConnectivity();
+          sendResponse({ success: true, connected: isConnected });
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -108,7 +113,17 @@ class BackgroundService {
     }
   }
 
-  startPriceMonitoring() {
+  async startPriceMonitoring() {
+    console.log('🚀 Starting price monitoring...');
+    
+    // Test PumpPortal connectivity on startup
+    const isPumpPortalConnected = await this.testPumpPortalConnectivity();
+    if (isPumpPortalConnected) {
+      console.log('✅ PumpPortal API is ready for price fetching');
+    } else {
+      console.log('⚠️ PumpPortal API is not accessible, will use fallback methods');
+    }
+    
     // Update prices every 30 seconds
     this.priceUpdateInterval = setInterval(async () => {
       await this.updateAllPrices();
@@ -496,12 +511,17 @@ class BackgroundService {
   async addSnipeToPortfolio(tokenData) {
     try {
       console.log('🎯 Adding snipe to portfolio:', tokenData);
-      
-      const { portfolio = {}, settings = {} } = await chrome.storage.local.get(['portfolio', 'settings']);
+
+      const { portfolio = {}, settings = {} } = await chrome.storage.local.get([
+        'portfolio',
+        'settings',
+      ]);
       console.log('📊 Current portfolio before adding snipe:', portfolio);
-      
+
       // Get SOL price for calculations
-      const { solPriceUSD = 100 } = await chrome.storage.local.get(['solPriceUSD']);
+      const { solPriceUSD = 100 } = await chrome.storage.local.get([
+        'solPriceUSD',
+      ]);
       console.log('💱 SOL price USD:', solPriceUSD);
 
       const symbol = tokenData.symbol || 'UNKNOWN';
@@ -509,7 +529,9 @@ class BackgroundService {
       const snipeAmountUSD = snipeAmountSOL * solPriceUSD;
       const tokenPrice = tokenData.price || 0.000001; // Default price if not found
 
-      console.log(`💰 Snipe details: Symbol=${symbol}, Amount=${snipeAmountSOL} SOL, Price=$${tokenPrice}`);
+      console.log(
+        `💰 Snipe details: Symbol=${symbol}, Amount=${snipeAmountSOL} SOL, Price=$${tokenPrice}`
+      );
 
       // Handle truncated contract addresses
       let contractAddress = tokenData.contractAddress;
@@ -522,7 +544,11 @@ class BackgroundService {
       // Calculate how many tokens we can buy with the snipe amount
       const tokensToBuy = snipeAmountUSD / tokenPrice;
 
-      console.log(`💰 Snipe calculation: ${snipeAmountSOL} SOL = $${snipeAmountUSD.toFixed(2)} = ${tokensToBuy.toFixed(6)} ${symbol} tokens at $${tokenPrice}`);
+      console.log(
+        `💰 Snipe calculation: ${snipeAmountSOL} SOL = $${snipeAmountUSD.toFixed(
+          2
+        )} = ${tokensToBuy.toFixed(6)} ${symbol} tokens at $${tokenPrice}`
+      );
 
       if (!portfolio[symbol]) {
         portfolio[symbol] = {
@@ -535,7 +561,7 @@ class BackgroundService {
           source: 'snipe',
           firstSeen: Date.now(),
           snipeHistory: [],
-          priceUpdateInterval: null // For real-time price updates
+          priceUpdateInterval: null, // For real-time price updates
         };
         console.log('🆕 Created new portfolio entry for:', symbol);
       }
@@ -563,7 +589,7 @@ class BackgroundService {
         tokensReceived: tokensToBuy,
         price: tokenPrice,
         timestamp: Date.now(),
-        source: tokenData.source || 'axiom'
+        source: tokenData.source || 'axiom',
       });
 
       // Keep only last 10 snipes per token
@@ -576,22 +602,31 @@ class BackgroundService {
 
       console.log('💾 Saving portfolio to storage...');
       await chrome.storage.local.set({ portfolio });
-      
+
       // Verify the save worked
-      const { portfolio: savedPortfolio } = await chrome.storage.local.get(['portfolio']);
+      const { portfolio: savedPortfolio } = await chrome.storage.local.get([
+        'portfolio',
+      ]);
       console.log('✅ Portfolio saved successfully:', savedPortfolio);
-      
-      console.log(`✅ Added snipe to portfolio: ${tokensToBuy.toFixed(6)} ${symbol} tokens for ${snipeAmountSOL} SOL`);
-      console.log(`📊 Portfolio now has ${Object.keys(savedPortfolio).length} tokens`);
-      
+
+      console.log(
+        `✅ Added snipe to portfolio: ${tokensToBuy.toFixed(
+          6
+        )} ${symbol} tokens for ${snipeAmountSOL} SOL`
+      );
+      console.log(
+        `📊 Portfolio now has ${Object.keys(savedPortfolio).length} tokens`
+      );
+
       // Notify popup/sidepanel to update
-      chrome.runtime.sendMessage({
-        action: 'portfolioUpdate',
-        data: { symbol, tokensToBuy, snipeAmountSOL }
-      }).catch(() => {
-        // Popup might not be open, ignore error
-      });
-      
+      chrome.runtime
+        .sendMessage({
+          action: 'portfolioUpdate',
+          data: { symbol, tokensToBuy, snipeAmountSOL },
+        })
+        .catch(() => {
+          // Popup might not be open, ignore error
+        });
     } catch (error) {
       console.error('Error adding snipe to portfolio:', error);
     }
@@ -599,7 +634,7 @@ class BackgroundService {
 
   startPriceUpdates(symbol, contractAddress) {
     console.log(`🔄 Starting price updates for ${symbol} (${contractAddress})`);
-    
+
     // Clear any existing interval for this token
     chrome.storage.local.get(['portfolio'], (result) => {
       const portfolio = result.portfolio || {};
@@ -607,7 +642,7 @@ class BackgroundService {
         clearInterval(portfolio[symbol].priceUpdateInterval);
         console.log(`🔄 Cleared existing interval for ${symbol}`);
       }
-      
+
       // Update price every 30 seconds
       const intervalId = setInterval(async () => {
         try {
@@ -623,14 +658,16 @@ class BackgroundService {
           console.error(`Error updating price for ${symbol}:`, error);
         }
       }, 30000); // 30 seconds
-      
+
       // Store interval ID in portfolio
       portfolio[symbol] = portfolio[symbol] || {};
       portfolio[symbol].priceUpdateInterval = intervalId;
       chrome.storage.local.set({ portfolio });
-      
-      console.log(`✅ Price update interval started for ${symbol} (ID: ${intervalId})`);
-      
+
+      console.log(
+        `✅ Price update interval started for ${symbol} (ID: ${intervalId})`
+      );
+
       // Do an immediate price fetch
       setTimeout(async () => {
         try {
@@ -649,69 +686,159 @@ class BackgroundService {
   async fetchTokenPrice(symbol, contractAddress) {
     try {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
-      
-      // Try Pump.fun API first (only for full contract addresses)
+
+      // Strategy 1: Try PumpPortal API (best for Pump.fun tokens)
       if (contractAddress && !contractAddress.includes('...')) {
         try {
-          console.log(`🔍 Trying Pump.fun API for ${symbol}...`);
-          const response = await fetch(`https://frontend-api.pump.fun/coins/${contractAddress}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
+          console.log(`🔍 Trying PumpPortal API for ${symbol}...`);
+          const pumpportalResponse = await fetch(
+            `https://api.pumpportal.fun/coin/${contractAddress}`,
+            {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'CryptoPaperTrader/1.0'
+              },
             }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.usd_market_cap) {
-              console.log(`✅ Pump.fun price for ${symbol}: $${data.usd_market_cap}`);
-              return data.usd_market_cap;
-            } else {
-              console.log(`⚠️ Pump.fun API returned no market cap for ${symbol}`);
+          );
+
+          if (pumpportalResponse.ok) {
+            const pumpportalData = await pumpportalResponse.json();
+            console.log(`📊 PumpPortal response for ${symbol}:`, pumpportalData);
+            
+            // PumpPortal returns market cap directly
+            if (pumpportalData.usd_market_cap) {
+              console.log(
+                `✅ PumpPortal market cap for ${symbol}: $${pumpportalData.usd_market_cap}`
+              );
+              return pumpportalData.usd_market_cap;
+            }
+            
+            // If no market cap, try to calculate from price and supply
+            if (pumpportalData.price && pumpportalData.supply) {
+              const marketCap = pumpportalData.price * pumpportalData.supply;
+              console.log(
+                `✅ PumpPortal calculated market cap for ${symbol}: $${marketCap}`
+              );
+              return marketCap;
             }
           } else {
-            console.log(`⚠️ Pump.fun API returned ${response.status} for ${symbol}`);
+            console.log(`⚠️ PumpPortal API returned ${pumpportalResponse.status} for ${symbol}`);
           }
         } catch (error) {
-          console.log(`⚠️ Pump.fun API failed for ${symbol}:`, error.message);
+          console.log(`⚠️ PumpPortal API failed for ${symbol}:`, error.message);
         }
-      } else {
-        console.log(`⚠️ Skipping Pump.fun API for ${symbol} - truncated contract address`);
       }
-      
-      // Fallback: Try to scrape from Axiom page
+
+      // Strategy 2: Try Jupiter API (works well for Solana tokens)
+      if (contractAddress && !contractAddress.includes('...')) {
+        try {
+          console.log(`🔍 Trying Jupiter API for ${symbol}...`);
+          const jupiterResponse = await fetch(
+            `https://price.jup.ag/v4/price?ids=${contractAddress}`,
+            {
+              method: 'GET',
+              headers: {
+                Accept: 'application/json',
+              },
+            }
+          );
+
+          if (jupiterResponse.ok) {
+            const jupiterData = await jupiterResponse.json();
+            if (jupiterData.data && jupiterData.data[contractAddress]) {
+              const price = jupiterData.data[contractAddress].price;
+              const solPrice = await this.getSOLPrice();
+              const marketCap = price * solPrice * 1000000; // Assuming 1M supply
+              console.log(
+                `✅ Jupiter price for ${symbol}: $${marketCap.toFixed(0)}`
+              );
+              return marketCap;
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ Jupiter API failed for ${symbol}:`, error.message);
+        }
+      }
+
+      // Strategy 3: Try Pump.fun API directly (sometimes works)
+      if (contractAddress && !contractAddress.includes('...')) {
+        try {
+          console.log(`🔍 Trying Pump.fun API directly for ${symbol}...`);
+          const pumpfunResponse = await fetch(
+            `https://frontend-api.pump.fun/coins/${contractAddress}`,
+            {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'CryptoPaperTrader/1.0'
+              },
+            }
+          );
+
+          if (pumpfunResponse.ok) {
+            const pumpfunData = await pumpfunResponse.json();
+            if (pumpfunData.usd_market_cap) {
+              console.log(
+                `✅ Pump.fun direct price for ${symbol}: $${pumpfunData.usd_market_cap}`
+              );
+              return pumpfunData.usd_market_cap;
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ Pump.fun direct API failed for ${symbol}:`, error.message);
+        }
+      }
+
+      // Strategy 4: Ask content script to scrape from current Axiom page
       try {
-        console.log(`🔍 Trying Axiom scraping for ${symbol}...`);
-        const response = await fetch('https://axiom.trade/pulse', {
-          method: 'GET',
-          headers: {
-            'Accept': 'text/html',
+        console.log(
+          `🔍 Asking content script to scrape price for ${symbol}...`
+        );
+        const tabs = await chrome.tabs.query({ url: ['*://axiom.trade/*'] });
+        if (tabs.length > 0) {
+          const response = await chrome.tabs.sendMessage(tabs[0].id, {
+            action: 'scrapeTokenPrice',
+            symbol: symbol,
+          });
+          if (response && response.price) {
+            console.log(
+              `✅ Content script price for ${symbol}: $${response.price}`
+            );
+            return response.price;
           }
-        });
-        
-        if (response.ok) {
-          const html = await response.text();
-          console.log(`📄 Axiom page loaded, searching for ${symbol}...`);
-          
-          // Look for the token in the HTML and extract price
-          const priceMatch = html.match(new RegExp(`${symbol}[^>]*MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'));
-          if (priceMatch) {
-            let price = parseFloat(priceMatch[1]);
-            if (priceMatch[0].includes('K')) price *= 1000;
-            if (priceMatch[0].includes('M')) price *= 1000000;
-            if (priceMatch[0].includes('B')) price *= 1000000000;
-            console.log(`✅ Axiom scraped price for ${symbol}: $${price}`);
-            return price;
-          } else {
-            console.log(`⚠️ No price match found for ${symbol} in Axiom HTML`);
-          }
-        } else {
-          console.log(`⚠️ Axiom page returned ${response.status}`);
         }
       } catch (error) {
-        console.log(`⚠️ Axiom scraping failed for ${symbol}:`, error.message);
+        console.log(
+          `⚠️ Content script scraping failed for ${symbol}:`,
+          error.message
+        );
       }
-      
+
+      // Strategy 5: Use CoinGecko API for well-known tokens
+      try {
+        console.log(`🔍 Trying CoinGecko API for ${symbol}...`);
+        const coingeckoResponse = await fetch(
+          `https://api.coingecko.com/api/v3/simple/price?ids=${symbol.toLowerCase()}&vs_currencies=usd&include_market_cap=true`
+        );
+        if (coingeckoResponse.ok) {
+          const cgData = await coingeckoResponse.json();
+          if (
+            cgData[symbol.toLowerCase()] &&
+            cgData[symbol.toLowerCase()].usd_market_cap
+          ) {
+            console.log(
+              `✅ CoinGecko market cap for ${symbol}: $${
+                cgData[symbol.toLowerCase()].usd_market_cap
+              }`
+            );
+            return cgData[symbol.toLowerCase()].usd_market_cap;
+          }
+        }
+      } catch (error) {
+        console.log(`⚠️ CoinGecko API failed for ${symbol}:`, error.message);
+      }
+
       console.log(`❌ No price found for ${symbol}`);
       return null;
     } catch (error) {
@@ -720,25 +847,66 @@ class BackgroundService {
     }
   }
 
+  async getSOLPrice() {
+    try {
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
+      );
+      if (response.ok) {
+        const data = await response.json();
+        return data.solana.usd;
+      }
+    } catch (error) {
+      console.log('⚠️ Failed to get SOL price, using default');
+    }
+    return 100; // Default SOL price
+  }
+
+  async testPumpPortalConnectivity() {
+    try {
+      console.log('🔍 Testing PumpPortal connectivity...');
+      const response = await fetch('https://api.pumpportal.fun/health', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'CryptoPaperTrader/1.0'
+        },
+      });
+      
+      if (response.ok) {
+        console.log('✅ PumpPortal API is accessible');
+        return true;
+      } else {
+        console.log(`⚠️ PumpPortal API returned ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      console.log('❌ PumpPortal API is not accessible:', error.message);
+      return false;
+    }
+  }
+
   async updateTokenPrice(symbol, newPrice) {
     try {
       const { portfolio = {} } = await chrome.storage.local.get(['portfolio']);
-      
+
       if (portfolio[symbol]) {
         const oldPrice = portfolio[symbol].lastPrice;
         portfolio[symbol].lastPrice = newPrice;
-        
+
         await chrome.storage.local.set({ portfolio });
-        
+
         console.log(`📈 Updated ${symbol} price: $${oldPrice} → $${newPrice}`);
-        
+
         // Notify UI of price update
-        chrome.runtime.sendMessage({
-          action: 'priceUpdate',
-          data: { symbol, oldPrice, newPrice }
-        }).catch(() => {
-          // Popup might not be open, ignore error
-        });
+        chrome.runtime
+          .sendMessage({
+            action: 'priceUpdate',
+            data: { symbol, oldPrice, newPrice },
+          })
+          .catch(() => {
+            // Popup might not be open, ignore error
+          });
       }
     } catch (error) {
       console.error(`Error updating token price for ${symbol}:`, error);
