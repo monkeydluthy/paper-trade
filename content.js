@@ -32,6 +32,12 @@ class AxiomSnipeInjector {
         sendResponse({ success: true, data });
         break;
 
+      case 'scrapeTokenPrice':
+        console.log(`🔍 Scraping price for token: ${request.symbol}`);
+        const price = this.scrapeTokenPriceFromPage(request.symbol);
+        sendResponse({ price: price });
+        break;
+
       default:
         sendResponse({ success: false, error: 'Unknown action' });
     }
@@ -143,24 +149,31 @@ class AxiomSnipeInjector {
 
     // Debug: Log all buttons found
     if (instantBuyButtons.length === 0) {
-      console.log('🔍 Debug: No buttons found. Let me check all buttons on page...');
+      console.log(
+        '🔍 Debug: No buttons found. Let me check all buttons on page...'
+      );
       const allButtons = document.querySelectorAll('button');
       console.log(`📊 Total buttons on page: ${allButtons.length}`);
-      
+
       // Log first few buttons for debugging
-      Array.from(allButtons).slice(0, 5).forEach((btn, i) => {
-        console.log(`Button ${i}:`, {
-          text: btn.textContent?.trim(),
-          classes: btn.className,
-          tagName: btn.tagName
+      Array.from(allButtons)
+        .slice(0, 5)
+        .forEach((btn, i) => {
+          console.log(`Button ${i}:`, {
+            text: btn.textContent?.trim(),
+            classes: btn.className,
+            tagName: btn.tagName,
+          });
         });
-      });
     }
 
     instantBuyButtons.forEach((button, index) => {
       // Find the token row for this button to check if we've already injected
-      const tokenRow = button.closest('[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]') || button.parentElement;
-      
+      const tokenRow =
+        button.closest(
+          '[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]'
+        ) || button.parentElement;
+
       // Check if we've already injected into this row
       if (tokenRow && !this.injectedButtons.has(tokenRow)) {
         this.injectSnipeButton(button, index);
@@ -194,15 +207,18 @@ class AxiomSnipeInjector {
 
     // Group buttons by their parent token row to avoid multiple injections per row
     const buttonsByRow = new Map();
-    
+
     potentialButtons.forEach((button) => {
       // Find the token row container (look for common patterns)
-      const tokenRow = button.closest('[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]') || button.parentElement;
-      
+      const tokenRow =
+        button.closest(
+          '[class*="row"], [class*="item"], [class*="card"], [class*="pair"], tr, div[class*="token"]'
+        ) || button.parentElement;
+
       if (tokenRow) {
         // Use the token row as the key
         const rowKey = tokenRow;
-        
+
         if (!buttonsByRow.has(rowKey)) {
           buttonsByRow.set(rowKey, []);
         }
@@ -217,19 +233,21 @@ class AxiomSnipeInjector {
       const sortedButtons = buttonsInRow.sort((a, b) => {
         const aText = a.textContent || '';
         const bText = b.textContent || '';
-        
+
         if (aText.includes('SOL') && !bText.includes('SOL')) return -1;
         if (!aText.includes('SOL') && bText.includes('SOL')) return 1;
         if (aText.includes('Buy') && !bText.includes('Buy')) return -1;
         if (!aText.includes('Buy') && bText.includes('Buy')) return 1;
         return 0;
       });
-      
+
       // Take only the first (most relevant) button from each row
       finalButtons.push(sortedButtons[0]);
     });
 
-    console.log(`🔍 Found ${potentialButtons.length} potential buttons, grouped into ${finalButtons.length} rows`);
+    console.log(
+      `🔍 Found ${potentialButtons.length} potential buttons, grouped into ${finalButtons.length} rows`
+    );
     return finalButtons;
   }
 
@@ -240,9 +258,8 @@ class AxiomSnipeInjector {
     // Only target actual buy/trade buttons, not general token listings
     return (
       element.tagName === 'BUTTON' &&
-      (
-        // Has lightning bolt icon (Axiom's instant buy indicator)
-        element.querySelector('svg[class*="lightning"], svg[class*="bolt"]') ||
+      // Has lightning bolt icon (Axiom's instant buy indicator)
+      (element.querySelector('svg[class*="lightning"], svg[class*="bolt"]') ||
         // Has specific buy/trade text
         (text.includes('Buy') && text.length < 20) ||
         (text.includes('Trade') && text.length < 20) ||
@@ -252,8 +269,7 @@ class AxiomSnipeInjector {
         classes.includes('instant') ||
         classes.includes('buy') ||
         classes.includes('trade') ||
-        classes.includes('lightning')
-      )
+        classes.includes('lightning'))
     );
   }
 
@@ -328,8 +344,10 @@ class AxiomSnipeInjector {
 
     if (parent) {
       // Check if we need to create a flex container
-      const existingFlexContainer = parent.querySelector('.crypto-paper-trader-button-group');
-      
+      const existingFlexContainer = parent.querySelector(
+        '.crypto-paper-trader-button-group'
+      );
+
       if (!existingFlexContainer) {
         // Create a flex container to hold both buttons side by side
         const buttonGroup = document.createElement('div');
@@ -343,10 +361,10 @@ class AxiomSnipeInjector {
 
         // Replace the original button with our flex container
         parent.replaceChild(buttonGroup, instantBuyButton);
-        
+
         // Add the original button back into the flex container
         buttonGroup.appendChild(instantBuyButton);
-        
+
         // Add our snipe button to the flex container
         buttonGroup.appendChild(snipeButton);
       } else {
@@ -473,35 +491,55 @@ class AxiomSnipeInjector {
 
   extractTokenDataFromContext(button) {
     console.log('🔍 Extracting token data from Axiom context...');
-    let tokenData = { symbol: 'Unknown', contractAddress: null, price: null, timestamp: Date.now(), source: 'axiom' };
-    
+    let tokenData = {
+      symbol: 'Unknown',
+      contractAddress: null,
+      price: null,
+      timestamp: Date.now(),
+      source: 'axiom',
+    };
+
     // Method 1: Look for Axiom-specific containers - go higher up the DOM tree
     let currentElement = button;
     let bestContainer = null;
-    
+
     // Go up to 10 levels to find the main token container
     for (let i = 0; i < 10 && currentElement; i++) {
       const text = currentElement.textContent || '';
-      console.log(`🔍 Level ${i} container text:`, text.substring(0, 200) + '...');
-      
+      console.log(
+        `🔍 Level ${i} container text:`,
+        text.substring(0, 200) + '...'
+      );
+
       // Look for containers that have token data (symbol + MC + contract)
       if (text.includes('MC$') && text.length > 50) {
         bestContainer = currentElement;
-        console.log(`✅ Found token container at level ${i}:`, text.substring(0, 100) + '...');
+        console.log(
+          `✅ Found token container at level ${i}:`,
+          text.substring(0, 100) + '...'
+        );
         break;
       }
       currentElement = currentElement.parentElement;
     }
-    
+
     if (bestContainer) {
       console.log('📦 Using best container for extraction');
-      tokenData.symbol = this.extractSymbolFromAxiom(bestContainer) || tokenData.symbol;
-      tokenData.contractAddress = this.extractContractFromAxiom(bestContainer) || tokenData.contractAddress;
-      tokenData.price = this.extractPriceFromAxiom(bestContainer) || tokenData.price;
+      tokenData.symbol =
+        this.extractSymbolFromAxiom(bestContainer) || tokenData.symbol;
+      tokenData.contractAddress =
+        this.extractContractFromAxiom(bestContainer) ||
+        tokenData.contractAddress;
+      tokenData.price =
+        this.extractPriceFromAxiom(bestContainer) || tokenData.price;
     }
 
     // Method 2: If we didn't find good data, try parent elements
-    if (tokenData.symbol === 'Unknown' || !tokenData.price || tokenData.price === 0.000001) {
+    if (
+      tokenData.symbol === 'Unknown' ||
+      !tokenData.price ||
+      tokenData.price === 0.000001
+    ) {
       console.log('🔄 Trying parent elements for better data...');
       currentElement = button.parentElement;
       for (let i = 0; i < 5 && currentElement; i++) {
@@ -509,7 +547,12 @@ class AxiomSnipeInjector {
         const contract = this.extractContractFromAxiom(currentElement);
         const price = this.extractPriceFromAxiom(currentElement);
 
-        if (symbol && symbol !== 'Unknown' && !this.isCommonWord(symbol) && tokenData.symbol === 'Unknown') {
+        if (
+          symbol &&
+          symbol !== 'Unknown' &&
+          !this.isCommonWord(symbol) &&
+          tokenData.symbol === 'Unknown'
+        ) {
           tokenData.symbol = symbol;
           console.log('✅ Found symbol in parent:', symbol);
         }
@@ -521,7 +564,7 @@ class AxiomSnipeInjector {
           tokenData.price = price;
           console.log('✅ Found price in parent:', price);
         }
-        
+
         currentElement = currentElement.parentElement;
       }
     }
@@ -536,9 +579,16 @@ class AxiomSnipeInjector {
 
     for (const element of nearbyElements) {
       const axiomData = this.extractAxiomSpecificData(element);
-      if (axiomData.symbol && !this.isCommonWord(axiomData.symbol) && tokenData.symbol === 'Unknown') tokenData.symbol = axiomData.symbol;
-      if (axiomData.contractAddress && !tokenData.contractAddress) tokenData.contractAddress = axiomData.contractAddress;
-      if (axiomData.price && axiomData.price !== 0.000001 && !tokenData.price) tokenData.price = axiomData.price;
+      if (
+        axiomData.symbol &&
+        !this.isCommonWord(axiomData.symbol) &&
+        tokenData.symbol === 'Unknown'
+      )
+        tokenData.symbol = axiomData.symbol;
+      if (axiomData.contractAddress && !tokenData.contractAddress)
+        tokenData.contractAddress = axiomData.contractAddress;
+      if (axiomData.price && axiomData.price !== 0.000001 && !tokenData.price)
+        tokenData.price = axiomData.price;
     }
 
     console.log('✅ Final extracted token data:', tokenData);
@@ -548,7 +598,7 @@ class AxiomSnipeInjector {
   extractAxiomSpecificData(button) {
     // Look for Axiom-specific data patterns
     const result = { symbol: null, contractAddress: null, price: null };
-    
+
     // Look for token symbol in nearby text - expand search area
     const nearbyElements = [
       button.parentElement,
@@ -557,25 +607,39 @@ class AxiomSnipeInjector {
       button.parentElement?.parentElement?.parentElement?.parentElement,
     ].filter(Boolean);
 
-    console.log('🔍 Searching for token data in nearby elements:', nearbyElements.length);
+    console.log(
+      '🔍 Searching for token data in nearby elements:',
+      nearbyElements.length
+    );
 
     for (const element of nearbyElements) {
       const text = element.textContent || '';
       console.log('📝 Element text:', text.substring(0, 100) + '...');
-      
+
       // Look for token symbols - more comprehensive patterns
       const symbolPatterns = [
-        /\b([A-Z]{2,10})\b/,  // Basic uppercase
-        /^([A-Z]{2,10})\s/,   // Start of line
-        /\s([A-Z]{2,10})\s/,  // Between spaces
-        /([A-Z]{2,10})\//,    // Before slash
+        /\b([A-Z]{2,10})\b/, // Basic uppercase
+        /^([A-Z]{2,10})\s/, // Start of line
+        /\s([A-Z]{2,10})\s/, // Between spaces
+        /([A-Z]{2,10})\//, // Before slash
       ];
 
       for (const pattern of symbolPatterns) {
         const symbolMatch = text.match(pattern);
         if (
           symbolMatch &&
-          !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'P', 'Q', 'DS'].includes(symbolMatch[1])
+          ![
+            'BUY',
+            'SELL',
+            'TRADE',
+            'SOL',
+            'USD',
+            'MC',
+            'VOL',
+            'P',
+            'Q',
+            'DS',
+          ].includes(symbolMatch[1])
         ) {
           result.symbol = symbolMatch[1];
           console.log('✅ Found symbol:', result.symbol);
@@ -585,9 +649,9 @@ class AxiomSnipeInjector {
 
       // Look for contract addresses - more comprehensive patterns
       const addressPatterns = [
-        /\b([A-Za-z0-9]{32,44})\b/,  // Basic pattern
-        /^([A-Za-z0-9]{32,44})\s/,   // Start of line
-        /\s([A-Za-z0-9]{32,44})\s/,  // Between spaces
+        /\b([A-Za-z0-9]{32,44})\b/, // Basic pattern
+        /^([A-Za-z0-9]{32,44})\s/, // Start of line
+        /\s([A-Za-z0-9]{32,44})\s/, // Between spaces
         /([A-Za-z0-9]{32,44})\.\.\./, // Truncated addresses
       ];
 
@@ -602,20 +666,20 @@ class AxiomSnipeInjector {
 
       // Look for prices - more comprehensive patterns
       const pricePatterns = [
-        /\$([0-9]+\.?[0-9]*[KMB]?)/,     // $123.45 or $123K
-        /F=\s*([0-9]+\.?[0-9]*[KMB]?)/,  // F= 123.45
+        /\$([0-9]+\.?[0-9]*[KMB]?)/, // $123.45 or $123K
+        /F=\s*([0-9]+\.?[0-9]*[KMB]?)/, // F= 123.45
         /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/, // MC $123.45
-        /([0-9]+\.?[0-9]*[KMB]?)\s*\$/,   // 123.45$
+        /([0-9]+\.?[0-9]*[KMB]?)\s*\$/, // 123.45$
       ];
 
       for (const pattern of pricePatterns) {
         const priceMatch = text.match(pattern);
         if (priceMatch) {
           let price = parseFloat(priceMatch[1]);
-          // Handle K, M, B suffixes
-          if (text.includes('K')) price *= 1000;
-          if (text.includes('M')) price *= 1000000;
-          if (text.includes('B')) price *= 1000000000;
+          // Handle K, M, B suffixes based on the matched value, not the full text
+          if (priceMatch[1].toUpperCase().includes('K')) price *= 1000;
+          if (priceMatch[1].toUpperCase().includes('M')) price *= 1000000;
+          if (priceMatch[1].toUpperCase().includes('B')) price *= 1000000000;
           result.price = price;
           console.log('✅ Found price:', result.price);
           break;
@@ -638,8 +702,13 @@ class AxiomSnipeInjector {
       '[data-testid*="symbol"]',
       '[data-testid*="token"]',
       '[data-testid*="name"]',
-      'h1', 'h2', 'h3', 'h4',
-      '.title', '.token-name', '.pair-name',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      '.title',
+      '.token-name',
+      '.pair-name',
       'span[class*="text"]',
       'div[class*="text"]',
       'p[class*="text"]',
@@ -651,7 +720,22 @@ class AxiomSnipeInjector {
         const text = symbolElement.textContent?.trim();
         if (text && text.length >= 2 && text.length <= 10) {
           // Check if it's a valid token symbol (letters only, not common words)
-          if (/^[A-Za-z]+$/.test(text) && !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'Price', 'Amount', 'Contract', 'Address'].includes(text.toUpperCase())) {
+          if (
+            /^[A-Za-z]+$/.test(text) &&
+            ![
+              'BUY',
+              'SELL',
+              'TRADE',
+              'SOL',
+              'USD',
+              'MC',
+              'VOL',
+              'Price',
+              'Amount',
+              'Contract',
+              'Address',
+            ].includes(text.toUpperCase())
+          ) {
             console.log('✅ Found symbol via selector:', text.toUpperCase());
             return text.toUpperCase();
           }
@@ -662,17 +746,31 @@ class AxiomSnipeInjector {
     // Fallback: look for uppercase text patterns in the element
     const text = element.textContent || '';
     const patterns = [
-      /\b([A-Z]{2,10})\b/,           // Basic uppercase
-      /^([A-Z]{2,10})\s/,            // Start of line
-      /\s([A-Z]{2,10})\s/,           // Between spaces
-      /([A-Z]{2,10})\//,             // Before slash
-      /([A-Z]{2,10})-$/,             // Before dash
-      /([A-Z]{2,10})\$/,             // Before dollar
+      /\b([A-Z]{2,10})\b/, // Basic uppercase
+      /^([A-Z]{2,10})\s/, // Start of line
+      /\s([A-Z]{2,10})\s/, // Between spaces
+      /([A-Z]{2,10})\//, // Before slash
+      /([A-Z]{2,10})-$/, // Before dash
+      /([A-Z]{2,10})\$/, // Before dollar
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
-      if (match && !['BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'MC', 'VOL', 'P', 'Q', 'DS'].includes(match[1])) {
+      if (
+        match &&
+        ![
+          'BUY',
+          'SELL',
+          'TRADE',
+          'SOL',
+          'USD',
+          'MC',
+          'VOL',
+          'P',
+          'Q',
+          'DS',
+        ].includes(match[1])
+      ) {
         console.log('✅ Found symbol via pattern:', match[1]);
         return match[1];
       }
@@ -700,10 +798,11 @@ class AxiomSnipeInjector {
     for (const selector of selectors) {
       const elements = element.querySelectorAll(selector);
       for (const el of elements) {
-        const address = el.getAttribute('data-address') || 
-                       el.getAttribute('data-contract') || 
-                       el.getAttribute('data-value') ||
-                       el.textContent?.trim();
+        const address =
+          el.getAttribute('data-address') ||
+          el.getAttribute('data-contract') ||
+          el.getAttribute('data-value') ||
+          el.textContent?.trim();
         if (address && this.isValidAddress(address)) {
           console.log('✅ Found contract via selector:', address);
           return address;
@@ -727,10 +826,10 @@ class AxiomSnipeInjector {
         if (href) {
           // Extract address from various URL patterns
           const addressPatterns = [
-            /\/([A-Za-z0-9]{32,44})/,           // Basic pattern
-            /address\/([A-Za-z0-9]{32,44})/,    // /address/...
-            /token\/([A-Za-z0-9]{32,44})/,      // /token/...
-            /contract\/([A-Za-z0-9]{32,44})/,   // /contract/...
+            /\/([A-Za-z0-9]{32,44})/, // Basic pattern
+            /address\/([A-Za-z0-9]{32,44})/, // /address/...
+            /token\/([A-Za-z0-9]{32,44})/, // /token/...
+            /contract\/([A-Za-z0-9]{32,44})/, // /contract/...
           ];
 
           for (const pattern of addressPatterns) {
@@ -747,10 +846,10 @@ class AxiomSnipeInjector {
     // Fallback: search text content for address patterns
     const text = element.textContent || '';
     const addressPatterns = [
-      /\b([A-Za-z0-9]{32,44})\b/,     // Basic pattern
-      /^([A-Za-z0-9]{32,44})\s/,      // Start of line
-      /\s([A-Za-z0-9]{32,44})\s/,     // Between spaces
-      /([A-Za-z0-9]{32,44})\.\.\./,   // Truncated addresses
+      /\b([A-Za-z0-9]{32,44})\b/, // Basic pattern
+      /^([A-Za-z0-9]{32,44})\s/, // Start of line
+      /\s([A-Za-z0-9]{32,44})\s/, // Between spaces
+      /([A-Za-z0-9]{32,44})\.\.\./, // Truncated addresses
     ];
 
     for (const pattern of addressPatterns) {
@@ -785,34 +884,37 @@ class AxiomSnipeInjector {
   // Axiom-specific extraction methods
   extractSymbolFromAxiom(element) {
     console.log('🔍 Extracting symbol from Axiom element...');
-    console.log('📦 Element HTML:', element.outerHTML.substring(0, 500) + '...');
-    
+    console.log(
+      '📦 Element HTML:',
+      element.outerHTML.substring(0, 500) + '...'
+    );
+
     // Look for common Axiom patterns
     const text = element.textContent || '';
     console.log('📝 Element text:', text.substring(0, 300) + '...');
-    
+
     // Look for token name patterns first (prioritize these)
     const tokenNamePatterns = [
       // Specific Axiom patterns from the logs
-      /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i,              // "SOL Speed Of Light"
-      /([A-Z][a-zA-Z]+)\s+Of\s+Light/i,                      // "SOL Of Light"
-      /([A-Z][a-zA-Z]+)\s+Inconvenience/i,                   // "BNB Inconvenience"
-      
+      /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i, // "SOL Speed Of Light"
+      /([A-Z][a-zA-Z]+)\s+Of\s+Light/i, // "SOL Of Light"
+      /([A-Z][a-zA-Z]+)\s+Inconvenience/i, // "BNB Inconvenience"
+
       // General patterns
-      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Coin/i,  // "Inconvenience Coin", "Bitcoin Coin"
+      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Coin/i, // "Inconvenience Coin", "Bitcoin Coin"
       /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Token/i, // "Inconvenience Token"
-      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+MC\$/i,  // "BNB Inconvenience Coin MC$21.1K"
-      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+MC/i,    // "BNB Inconvenience Coin MC"
+      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+MC\$/i, // "BNB Inconvenience Coin MC$21.1K"
+      /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+MC/i, // "BNB Inconvenience Coin MC"
     ];
 
     for (const pattern of tokenNamePatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         let symbol = match[1].trim();
-        
+
         // Clean up the symbol
         symbol = symbol.replace(/\s+Coin$/, '').replace(/\s+Token$/, '');
-        
+
         // For multi-word symbols, take the first word or create a short version
         if (symbol.includes(' ')) {
           const words = symbol.split(' ');
@@ -823,36 +925,41 @@ class AxiomSnipeInjector {
               symbol = firstWord;
             } else {
               // Create acronym from first letters
-              symbol = words.map(w => w.charAt(0)).join('').toUpperCase();
+              symbol = words
+                .map((w) => w.charAt(0))
+                .join('')
+                .toUpperCase();
             }
           }
         }
-        
+
         console.log(`🔍 Processing token name: ${match[1]} → ${symbol}`);
-        
+
         // Filter out common words and invalid symbols
-        if (!this.isCommonWord(symbol) && 
-            symbol.length >= 2 && 
-            symbol.length <= 15 &&
-            /^[A-Za-z]+$/.test(symbol)) {
+        if (
+          !this.isCommonWord(symbol) &&
+          symbol.length >= 2 &&
+          symbol.length <= 15 &&
+          /^[A-Za-z]+$/.test(symbol)
+        ) {
           console.log('✅ Found token name:', symbol);
           return symbol;
         }
       }
     }
-    
+
     // Look for MEMESEM-like patterns (all caps, 3-10 characters)
     const tokenSymbolPatterns = [
-      /\b([A-Z]{3,10})\b/,                    // Basic uppercase letters (3-10 chars)
-      /^([A-Z]{3,10})\s/,                     // Start of line
-      /\s([A-Z]{3,10})\s/,                    // Between spaces
-      /([A-Z]{3,10})\//,                      // Before slash
-      /([A-Z]{3,10})-$/,                      // Before dash
-      /([A-Z]{3,10})\$/,                      // Before dollar
-      /([A-Z]{3,10})\s*SOL/,                  // Before SOL
-      /([A-Z]{3,10})\s*USDC/,                 // Before USDC
-      /([A-Z]{3,10})\s*MC/,                   // Before MC
-      /([A-Z]{3,10})\s*V/,                    // Before V
+      /\b([A-Z]{3,10})\b/, // Basic uppercase letters (3-10 chars)
+      /^([A-Z]{3,10})\s/, // Start of line
+      /\s([A-Z]{3,10})\s/, // Between spaces
+      /([A-Z]{3,10})\//, // Before slash
+      /([A-Z]{3,10})-$/, // Before dash
+      /([A-Z]{3,10})\$/, // Before dollar
+      /([A-Z]{3,10})\s*SOL/, // Before SOL
+      /([A-Z]{3,10})\s*USDC/, // Before USDC
+      /([A-Z]{3,10})\s*MC/, // Before MC
+      /([A-Z]{3,10})\s*V/, // Before V
     ];
 
     // Extract all potential symbols and filter
@@ -860,9 +967,14 @@ class AxiomSnipeInjector {
     for (const pattern of tokenSymbolPatterns) {
       const matches = text.match(new RegExp(pattern.source, 'g'));
       if (matches) {
-        matches.forEach(match => {
+        matches.forEach((match) => {
           const symbol = match.replace(/[^A-Z]/g, '');
-          if (symbol && symbol.length >= 3 && symbol.length <= 10 && !this.isCommonWord(symbol)) {
+          if (
+            symbol &&
+            symbol.length >= 3 &&
+            symbol.length <= 10 &&
+            !this.isCommonWord(symbol)
+          ) {
             potentialSymbols.push(symbol);
           }
         });
@@ -878,13 +990,22 @@ class AxiomSnipeInjector {
 
     // Look in specific elements with more targeted approach
     const symbolSelectors = [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
       '[class*="title"]',
       '[class*="name"]',
       '[class*="symbol"]',
       '[class*="token"]',
       '[class*="pair"]',
-      'span', 'div', 'p', 'strong', 'b'
+      'span',
+      'div',
+      'p',
+      'strong',
+      'b',
     ];
 
     for (const selector of symbolSelectors) {
@@ -907,18 +1028,24 @@ class AxiomSnipeInjector {
 
   extractContractFromAxiom(element) {
     console.log('🔍 Extracting contract from Axiom element...');
-    console.log('📦 Element HTML for contract:', element.outerHTML.substring(0, 500) + '...');
-    
+    console.log(
+      '📦 Element HTML for contract:',
+      element.outerHTML.substring(0, 500) + '...'
+    );
+
     const text = element.textContent || '';
-    console.log('📝 Element text for contract search:', text.substring(0, 300) + '...');
-    
+    console.log(
+      '📝 Element text for contract search:',
+      text.substring(0, 300) + '...'
+    );
+
     // Axiom-specific contract address patterns - handle truncated addresses
     const contractPatterns = [
-      /\b([A-Za-z0-9]{32,44})\b/,             // Basic full pattern
-      /^([A-Za-z0-9]{32,44})\s/,              // Start of line
-      /\s([A-Za-z0-9]{32,44})\s/,             // Between spaces
-      /([A-Za-z0-9]{32,44})\.\.\./,           // Truncated addresses with dots
-      /([A-Za-z0-9]{32,44})...$/,             // End truncated
+      /\b([A-Za-z0-9]{32,44})\b/, // Basic full pattern
+      /^([A-Za-z0-9]{32,44})\s/, // Start of line
+      /\s([A-Za-z0-9]{32,44})\s/, // Between spaces
+      /([A-Za-z0-9]{32,44})\.\.\./, // Truncated addresses with dots
+      /([A-Za-z0-9]{32,44})...$/, // End truncated
       /([A-Za-z0-9]{4})\.\.\.([A-Za-z0-9]{4})/, // Pattern like "Ck5D...BAGS"
     ];
 
@@ -951,19 +1078,20 @@ class AxiomSnipeInjector {
       'span',
       'div',
       'p',
-      'a'
+      'a',
     ];
 
     for (const selector of contractSelectors) {
       const elements = element.querySelectorAll(selector);
       for (const el of elements) {
         // Check attributes first
-        const address = el.getAttribute('data-address') || 
-                       el.getAttribute('data-contract') || 
-                       el.getAttribute('data-value') ||
-                       el.getAttribute('href') ||
-                       el.textContent?.trim();
-        
+        const address =
+          el.getAttribute('data-address') ||
+          el.getAttribute('data-contract') ||
+          el.getAttribute('data-value') ||
+          el.getAttribute('href') ||
+          el.textContent?.trim();
+
         if (address) {
           // Check if it's a full valid address
           if (this.isValidAddress(address)) {
@@ -985,54 +1113,59 @@ class AxiomSnipeInjector {
 
   extractPriceFromAxiom(element) {
     console.log('🔍 Extracting price from Axiom element...');
-    console.log('📦 Element HTML for price:', element.outerHTML.substring(0, 1000) + '...');
-    
+    console.log(
+      '📦 Element HTML for price:',
+      element.outerHTML.substring(0, 1000) + '...'
+    );
+
     const text = element.textContent || '';
     console.log('📝 Full element text for price search:', text);
-    
+
     // Look for all dollar amounts first
     const dollarMatches = text.match(/\$[0-9]+\.?[0-9]*[KMB]?/g);
     console.log('💵 All dollar amounts found:', dollarMatches);
-    
+
     // Axiom-specific patterns - be more aggressive in finding prices
     const pricePatterns = [
       // Market Cap patterns (prioritize these)
-      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,       // MC $4.58M
+      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i, // MC $4.58M
       /Market\s*Cap[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i, // Market Cap: $4.58M
-      /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i,      // MC: 4.58M
-      
+      /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i, // MC: 4.58M
+
       // Volume patterns
-      /V\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,        // V $157K
+      /V\s*\$([0-9]+\.?[0-9]*[KMB]?)/i, // V $157K
       /Volume[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i, // Volume: $157K
-      
+
       // Any dollar amount pattern
-      /\$([0-9]+\.?[0-9]*[KMB]?)/g,           // $123.45 or $123K
+      /\$([0-9]+\.?[0-9]*[KMB]?)/g, // $123.45 or $123K
     ];
 
-      // First, try to find market cap specifically
-      const mcPatterns = [
-        /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,
-        /Market\s*Cap[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i,
-        /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i,
-      ];
-      
-      console.log('🔍 Looking for market cap patterns in:', text);
+    // First, try to find market cap specifically
+    const mcPatterns = [
+      /MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i,
+      /Market\s*Cap[:\s]*\$([0-9]+\.?[0-9]*[KMB]?)/i,
+      /MC[:\s]*([0-9]+\.?[0-9]*[KMB]?)/i,
+    ];
+
+    console.log('🔍 Looking for market cap patterns in:', text);
 
     for (const pattern of mcPatterns) {
       const match = text.match(pattern);
       if (match) {
         console.log(`🔍 MC Pattern match: ${match[0]} -> ${match[1]}`);
-        
+
         let price = parseFloat(match[1]);
         const originalPrice = price;
-        
+
         // Handle K, M, B suffixes based on the captured value, not the full match
         if (match[1].toUpperCase().includes('K')) price *= 1000;
         if (match[1].toUpperCase().includes('M')) price *= 1000000;
         if (match[1].toUpperCase().includes('B')) price *= 1000000000;
-        
-        console.log(`💰 Market cap calculation: ${originalPrice} → ${price} (${match[1]})`);
-        
+
+        console.log(
+          `💰 Market cap calculation: ${originalPrice} → ${price} (${match[1]})`
+        );
+
         // Market cap should be reasonable (between $1K and $1T)
         if (price >= 1000 && price <= 1000000000000) {
           console.log('✅ Found market cap:', price);
@@ -1049,59 +1182,76 @@ class AxiomSnipeInjector {
         const numberMatch = dollarMatch.match(/\$([0-9]+\.?[0-9]*[KMB]?)/);
         if (numberMatch) {
           let price = parseFloat(numberMatch[1]);
-          
+
           // Skip very large numbers that are likely not prices
           if (price > 1000000000000) {
             console.log('⚠️ Skipping very large number:', price);
             continue;
           }
-          
+
           // Handle K, M, B suffixes
           if (dollarMatch.toUpperCase().includes('K')) price *= 1000;
           if (dollarMatch.toUpperCase().includes('M')) price *= 1000000;
           if (dollarMatch.toUpperCase().includes('B')) price *= 1000000000;
-          
+
           // Skip transaction counts, fees, etc.
-          const context = text.substring(Math.max(0, text.indexOf(dollarMatch) - 10), text.indexOf(dollarMatch) + 20);
-          if (context.includes('TX') || context.includes('F ') || context.includes('F=')) {
+          const context = text.substring(
+            Math.max(0, text.indexOf(dollarMatch) - 10),
+            text.indexOf(dollarMatch) + 20
+          );
+          if (
+            context.includes('TX') ||
+            context.includes('F ') ||
+            context.includes('F=')
+          ) {
             console.log('⚠️ Skipping TX/F context:', dollarMatch);
             continue;
           }
-          
+
           // Accept reasonable prices
           if (price >= 100 && price <= 100000000000) {
-            console.log('✅ Found reasonable price:', price, 'from:', dollarMatch);
+            console.log(
+              '✅ Found reasonable price:',
+              price,
+              'from:',
+              dollarMatch
+            );
             return price;
           }
         }
       }
     }
 
-    // If still no price found, try to find any number that could be a price
-    const numberPatterns = [
-      /([0-9]+\.[0-9]+[KMB]?)/g,  // 4.58M, 157K
-      /([0-9]+[KMB])/g,           // 458M, 157K
-    ];
+     // If still no price found, try to find any number that could be a price
+     const numberPatterns = [
+       /([0-9]+\.[0-9]+[KMB]?)/g, // 4.58M, 157K
+       /([0-9]+[KMB])/g, // 458M, 157K
+     ];
 
-    for (const pattern of numberPatterns) {
-      const matches = text.match(pattern);
-      if (matches) {
-        for (const match of matches) {
-          let price = parseFloat(match.replace(/[KMB]/g, ''));
-          
-          // Handle K, M, B suffixes
-          if (match.toUpperCase().includes('K')) price *= 1000;
-          if (match.toUpperCase().includes('M')) price *= 1000000;
-          if (match.toUpperCase().includes('B')) price *= 1000000000;
-          
-          // Accept reasonable prices
-          if (price >= 100 && price <= 100000000000) {
-            console.log('✅ Found reasonable number price:', price, 'from:', match);
-            return price;
-          }
-        }
-      }
-    }
+     for (const pattern of numberPatterns) {
+       const matches = text.match(pattern);
+       if (matches) {
+         for (const match of matches) {
+           let price = parseFloat(match.replace(/[KMB]/g, ''));
+
+           // Handle K, M, B suffixes
+           if (match.toUpperCase().includes('K')) price *= 1000;
+           if (match.toUpperCase().includes('M')) price *= 1000000;
+           if (match.toUpperCase().includes('B')) price *= 1000000000;
+
+           // Accept reasonable prices (but skip if we already found a good one)
+           if (price >= 100 && price <= 100000000000) {
+             console.log(
+               '✅ Found reasonable number price:',
+               price,
+               'from:',
+               match
+             );
+             return price;
+           }
+         }
+       }
+     }
 
     // If no price found, use a default memecoin price
     console.log('⚠️ No price found, using default memecoin price');
@@ -1110,21 +1260,21 @@ class AxiomSnipeInjector {
 
   isValidAddress(address) {
     if (!address || typeof address !== 'string') return false;
-    
+
     // Ethereum address validation (0x + 40 hex characters)
     const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
-    
+
     // Solana address validation (Base58, 32-44 characters)
     const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-    
+
     return ethAddressRegex.test(address) || solanaAddressRegex.test(address);
   }
 
   formatPrice(price) {
     if (!price || price === 0) return '$0';
-    
+
     const absPrice = Math.abs(price);
-    
+
     if (absPrice >= 1000000000) {
       return `$${(price / 1000000000).toFixed(1)}B`;
     } else if (absPrice >= 1000000) {
@@ -1140,10 +1290,39 @@ class AxiomSnipeInjector {
 
   isCommonWord(word) {
     const commonWords = [
-      'BUY', 'SELL', 'TRADE', 'SOL', 'USD', 'USDC', 'MC', 'VOL', 'P', 'Q', 'DS',
-      'Price', 'Amount', 'Contract', 'Address', 'Token', 'Pair', 'Market', 'Volume',
-      'Liquidity', 'Holders', 'Supply', 'Cap', 'Change', 'Percent', 'Total', 'Value',
-      'SNIPE', 'SNIPED', 'INJECT', 'AXIOM', 'BUTTON', 'CLICK'
+      'BUY',
+      'SELL',
+      'TRADE',
+      'SOL',
+      'USD',
+      'USDC',
+      'MC',
+      'VOL',
+      'P',
+      'Q',
+      'DS',
+      'Price',
+      'Amount',
+      'Contract',
+      'Address',
+      'Token',
+      'Pair',
+      'Market',
+      'Volume',
+      'Liquidity',
+      'Holders',
+      'Supply',
+      'Cap',
+      'Change',
+      'Percent',
+      'Total',
+      'Value',
+      'SNIPE',
+      'SNIPED',
+      'INJECT',
+      'AXIOM',
+      'BUTTON',
+      'CLICK',
     ];
     return commonWords.includes(word.toUpperCase());
   }
@@ -1156,6 +1335,64 @@ class AxiomSnipeInjector {
       timestamp: Date.now(),
       buttons: this.findInstantBuyButtons().length,
     };
+  }
+
+  scrapeTokenPriceFromPage(symbol) {
+    console.log(`🔍 Scraping price for ${symbol} from current page...`);
+
+    try {
+      // Look for the token in the current page content
+      const pageText = document.body.textContent || '';
+      console.log(`📄 Page text length: ${pageText.length} characters`);
+
+      // Search for market cap patterns with the token symbol
+      const patterns = [
+        new RegExp(`${symbol}[^>]*MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
+        new RegExp(`MC\\$([0-9]+\\.[0-9]*[KMB]?)[^>]*${symbol}`, 'i'),
+        new RegExp(
+          `${symbol}[^>]*Market\\s*Cap[^>]*\\$([0-9]+\\.[0-9]*[KMB]?)`,
+          'i'
+        ),
+      ];
+
+      for (const pattern of patterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          let price = parseFloat(match[1]);
+          if (match[1].includes('K')) price *= 1000;
+          if (match[1].includes('M')) price *= 1000000;
+          if (match[1].includes('B')) price *= 1000000000;
+
+          console.log(`✅ Found price for ${symbol}: $${price}`);
+          return price;
+        }
+      }
+
+      // If no specific pattern found, look for any market cap near the symbol
+      const symbolIndex = pageText.indexOf(symbol);
+      if (symbolIndex !== -1) {
+        const context = pageText.substring(
+          Math.max(0, symbolIndex - 100),
+          symbolIndex + 200
+        );
+        const mcMatch = context.match(/MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i);
+        if (mcMatch) {
+          let price = parseFloat(mcMatch[1]);
+          if (mcMatch[1].includes('K')) price *= 1000;
+          if (mcMatch[1].includes('M')) price *= 1000000;
+          if (mcMatch[1].includes('B')) price *= 1000000000;
+
+          console.log(`✅ Found context price for ${symbol}: $${price}`);
+          return price;
+        }
+      }
+
+      console.log(`❌ No price found for ${symbol} on current page`);
+      return null;
+    } catch (error) {
+      console.error(`Error scraping price for ${symbol}:`, error);
+      return null;
+    }
   }
 }
 
