@@ -89,6 +89,12 @@ class BackgroundService {
           sendResponse({ success: true, connected: isConnected });
           break;
 
+        case 'testPriceUpdate':
+          console.log('🧪 Manual price update test triggered');
+          await this.updateAllPrices();
+          sendResponse({ success: true, message: 'Price update test completed' });
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -115,52 +121,59 @@ class BackgroundService {
 
   async startPriceMonitoring() {
     console.log('🚀 Starting price monitoring...');
-    
+
     // Test PumpPortal connectivity on startup
     const isPumpPortalConnected = await this.testPumpPortalConnectivity();
     if (isPumpPortalConnected) {
       console.log('✅ PumpPortal API is ready for price fetching');
     } else {
-      console.log('⚠️ PumpPortal API is not accessible, will use fallback methods');
+      console.log(
+        '⚠️ PumpPortal API is not accessible, will use fallback methods'
+      );
     }
-    
+
     // Update prices every 30 seconds
+    console.log('⏰ Setting up 30-second price update interval...');
     this.priceUpdateInterval = setInterval(async () => {
+      console.log('⏰ Price update interval triggered');
       await this.updateAllPrices();
     }, 30000);
+    console.log(`✅ Price update interval set with ID: ${this.priceUpdateInterval}`);
   }
 
   async updateAllPrices() {
     try {
+      console.log('🔄 Starting periodic price updates...');
       const { portfolio } = await chrome.storage.local.get(['portfolio']);
-      if (!portfolio || Object.keys(portfolio).length === 0) return;
+      if (!portfolio || Object.keys(portfolio).length === 0) {
+        console.log('📊 No portfolio holdings to update');
+        return;
+      }
 
-      const updatedPrices = {};
-      for (const symbol of Object.keys(portfolio)) {
+      console.log(`📊 Updating prices for ${Object.keys(portfolio).length} holdings`);
+      
+      for (const [symbol, holding] of Object.entries(portfolio)) {
         try {
-          const priceData = await this.fetchCoinPrice(symbol);
-          if (priceData) {
-            updatedPrices[symbol] = priceData;
+          console.log(`🔄 Updating price for ${symbol}...`);
+          const contractAddress = holding.contractAddress;
+          
+          if (contractAddress) {
+            const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+            if (newPrice && newPrice > 0) {
+              console.log(`📈 New price for ${symbol}: $${newPrice}`);
+              await this.updateTokenPrice(symbol, newPrice);
+            } else {
+              console.log(`⚠️ No valid price update for ${symbol}`);
+            }
+          } else {
+            console.log(`⚠️ No contract address for ${symbol}, skipping update`);
           }
         } catch (error) {
-          console.warn(`Failed to update price for ${symbol}:`, error);
+          console.error(`Failed to update price for ${symbol}:`, error);
         }
       }
-
-      // Store updated prices
-      if (Object.keys(updatedPrices).length > 0) {
-        await chrome.storage.local.set({ priceData: updatedPrices });
-
-        // Notify popup if it's open
-        chrome.runtime
-          .sendMessage({
-            action: 'priceUpdate',
-            data: updatedPrices,
-          })
-          .catch(() => {
-            // Popup might not be open, ignore error
-          });
-      }
+      
+      console.log('✅ Completed periodic price updates');
     } catch (error) {
       console.error('Error updating prices:', error);
     }
@@ -696,16 +709,19 @@ class BackgroundService {
             {
               method: 'GET',
               headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'CryptoPaperTrader/1.0'
+                Accept: 'application/json',
+                'User-Agent': 'CryptoPaperTrader/1.0',
               },
             }
           );
 
           if (pumpportalResponse.ok) {
             const pumpportalData = await pumpportalResponse.json();
-            console.log(`📊 PumpPortal response for ${symbol}:`, pumpportalData);
-            
+            console.log(
+              `📊 PumpPortal response for ${symbol}:`,
+              pumpportalData
+            );
+
             // PumpPortal returns market cap directly
             if (pumpportalData.usd_market_cap) {
               console.log(
@@ -713,7 +729,7 @@ class BackgroundService {
               );
               return pumpportalData.usd_market_cap;
             }
-            
+
             // If no market cap, try to calculate from price and supply
             if (pumpportalData.price && pumpportalData.supply) {
               const marketCap = pumpportalData.price * pumpportalData.supply;
@@ -723,7 +739,9 @@ class BackgroundService {
               return marketCap;
             }
           } else {
-            console.log(`⚠️ PumpPortal API returned ${pumpportalResponse.status} for ${symbol}`);
+            console.log(
+              `⚠️ PumpPortal API returned ${pumpportalResponse.status} for ${symbol}`
+            );
           }
         } catch (error) {
           console.log(`⚠️ PumpPortal API failed for ${symbol}:`, error.message);
@@ -770,8 +788,8 @@ class BackgroundService {
             {
               method: 'GET',
               headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'CryptoPaperTrader/1.0'
+                Accept: 'application/json',
+                'User-Agent': 'CryptoPaperTrader/1.0',
               },
             }
           );
@@ -786,7 +804,10 @@ class BackgroundService {
             }
           }
         } catch (error) {
-          console.log(`⚠️ Pump.fun direct API failed for ${symbol}:`, error.message);
+          console.log(
+            `⚠️ Pump.fun direct API failed for ${symbol}:`,
+            error.message
+          );
         }
       }
 
@@ -868,11 +889,11 @@ class BackgroundService {
       const response = await fetch('https://api.pumpportal.fun/health', {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'CryptoPaperTrader/1.0'
+          Accept: 'application/json',
+          'User-Agent': 'CryptoPaperTrader/1.0',
         },
       });
-      
+
       if (response.ok) {
         console.log('✅ PumpPortal API is accessible');
         return true;
