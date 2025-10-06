@@ -92,7 +92,10 @@ class BackgroundService {
         case 'testPriceUpdate':
           console.log('🧪 Manual price update test triggered');
           await this.updateAllPrices();
-          sendResponse({ success: true, message: 'Price update test completed' });
+          sendResponse({
+            success: true,
+            message: 'Price update test completed',
+          });
           break;
 
         default:
@@ -138,7 +141,9 @@ class BackgroundService {
       console.log('⏰ Price update interval triggered');
       await this.updateAllPrices();
     }, 30000);
-    console.log(`✅ Price update interval set with ID: ${this.priceUpdateInterval}`);
+    console.log(
+      `✅ Price update interval set with ID: ${this.priceUpdateInterval}`
+    );
   }
 
   async updateAllPrices() {
@@ -150,15 +155,20 @@ class BackgroundService {
         return;
       }
 
-      console.log(`📊 Updating prices for ${Object.keys(portfolio).length} holdings`);
-      
+      console.log(
+        `📊 Updating prices for ${Object.keys(portfolio).length} holdings`
+      );
+
       for (const [symbol, holding] of Object.entries(portfolio)) {
         try {
           console.log(`🔄 Updating price for ${symbol}...`);
           const contractAddress = holding.contractAddress;
-          
+
           if (contractAddress) {
-            const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+            const newPrice = await this.fetchTokenPrice(
+              symbol,
+              contractAddress
+            );
             if (newPrice && newPrice > 0) {
               console.log(`📈 New price for ${symbol}: $${newPrice}`);
               await this.updateTokenPrice(symbol, newPrice);
@@ -166,13 +176,15 @@ class BackgroundService {
               console.log(`⚠️ No valid price update for ${symbol}`);
             }
           } else {
-            console.log(`⚠️ No contract address for ${symbol}, skipping update`);
+            console.log(
+              `⚠️ No contract address for ${symbol}, skipping update`
+            );
           }
         } catch (error) {
           console.error(`Failed to update price for ${symbol}:`, error);
         }
       }
-      
+
       console.log('✅ Completed periodic price updates');
     } catch (error) {
       console.error('Error updating prices:', error);
@@ -499,12 +511,12 @@ class BackgroundService {
       // Save to storage
       await chrome.storage.local.set({ snipes });
 
-      // If it's a valid contract address, also add to portfolio for tracking
-      if (
-        tokenData.contractAddress &&
-        this.isValidContractAddress(tokenData.contractAddress)
-      ) {
+      // If it has a contract address (even truncated), add to portfolio for tracking
+      if (tokenData.contractAddress) {
+        console.log('📝 Adding snipe to portfolio with contract address:', tokenData.contractAddress);
         await this.addSnipeToPortfolio(tokenData);
+      } else {
+        console.log('⚠️ No contract address found for snipe, skipping portfolio addition');
       }
 
       return {
@@ -613,14 +625,15 @@ class BackgroundService {
       // Start real-time price updates for this token
       this.startPriceUpdates(symbol, contractAddress);
 
-      console.log('💾 Saving portfolio to storage...');
-      await chrome.storage.local.set({ portfolio });
+        console.log('💾 Saving portfolio to storage...');
+        await chrome.storage.local.set({ portfolio });
 
-      // Verify the save worked
-      const { portfolio: savedPortfolio } = await chrome.storage.local.get([
-        'portfolio',
-      ]);
-      console.log('✅ Portfolio saved successfully:', savedPortfolio);
+        // Verify the save worked
+        const { portfolio: savedPortfolio } = await chrome.storage.local.get([
+          'portfolio',
+        ]);
+        console.log('✅ Portfolio saved successfully:', savedPortfolio);
+        console.log(`📊 Portfolio now contains ${Object.keys(savedPortfolio).length} tokens:`, Object.keys(savedPortfolio));
 
       console.log(
         `✅ Added snipe to portfolio: ${tokensToBuy.toFixed(
