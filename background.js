@@ -162,14 +162,30 @@ class BackgroundService {
       for (const [symbol, holding] of Object.entries(portfolio)) {
         try {
           console.log(`🔄 Updating price for ${symbol}...`);
+          console.log(`📊 Holding data for ${symbol}:`, holding);
+          
           // Prefer full contract address, fall back to truncated
-          const contractAddress = holding.fullContractAddress || holding.contractAddress;
+          const contractAddress =
+            holding.fullContractAddress || holding.contractAddress;
+
+          console.log(`🔍 Contract address check for ${symbol}:`, {
+            fullContractAddress: holding.fullContractAddress,
+            contractAddress: holding.contractAddress,
+            finalAddress: contractAddress
+          });
 
           if (contractAddress) {
-            const addressType = holding.fullContractAddress ? 'full' : 'truncated';
-            console.log(`📡 Using ${addressType} contract address for ${symbol}: ${contractAddress}`);
-            
-            const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+            const addressType = holding.fullContractAddress
+              ? 'full'
+              : 'truncated';
+            console.log(
+              `📡 Using ${addressType} contract address for ${symbol}: ${contractAddress}`
+            );
+
+            const newPrice = await this.fetchTokenPrice(
+              symbol,
+              contractAddress
+            );
             if (newPrice && newPrice > 0) {
               console.log(`📈 New price for ${symbol}: $${newPrice}`);
               await this.updateTokenPrice(symbol, newPrice);
@@ -564,21 +580,24 @@ class BackgroundService {
         `💰 Snipe details: Symbol=${symbol}, Amount=${snipeAmountSOL} SOL, Price=$${tokenPrice}`
       );
 
-        // Handle contract addresses (both full and truncated)
-        let contractAddress = tokenData.contractAddress;
-        let fullContractAddress = null;
-        
-        if (contractAddress) {
-          if (contractAddress.includes('...')) {
-            console.log('⚠️ Truncated contract address detected:', contractAddress);
-            // Store truncated as the main address, but try to resolve full address later
-          } else if (this.isValidContractAddress(contractAddress)) {
-            console.log('✅ Full contract address detected:', contractAddress);
-            fullContractAddress = contractAddress;
-          } else {
-            console.log('⚠️ Invalid contract address format:', contractAddress);
-          }
+      // Handle contract addresses (both full and truncated)
+      let contractAddress = tokenData.contractAddress;
+      let fullContractAddress = null;
+
+      if (contractAddress) {
+        if (contractAddress.includes('...')) {
+          console.log(
+            '⚠️ Truncated contract address detected:',
+            contractAddress
+          );
+          // Store truncated as the main address, but try to resolve full address later
+        } else if (this.isValidContractAddress(contractAddress)) {
+          console.log('✅ Full contract address detected:', contractAddress);
+          fullContractAddress = contractAddress;
+        } else {
+          console.log('⚠️ Invalid contract address format:', contractAddress);
         }
+      }
 
       // Calculate how many tokens we can buy with the snipe amount
       const tokensToBuy = snipeAmountUSD / tokenPrice;
@@ -589,47 +608,66 @@ class BackgroundService {
         )} = ${tokensToBuy.toFixed(6)} ${symbol} tokens at $${tokenPrice}`
       );
 
-        if (!portfolio[symbol]) {
-          portfolio[symbol] = {
-            symbol: symbol,
-            contractAddress: contractAddress, // May be truncated
-            fullContractAddress: fullContractAddress, // Full address if available
-            amount: 0,
-            avgPrice: 0,
-            totalInvested: 0,
-            lastPrice: tokenPrice,
-            source: 'snipe',
-            firstSeen: Date.now(),
-            snipeHistory: [],
-            priceUpdateInterval: null, // For real-time price updates
-          };
-          console.log('🆕 Created new portfolio entry for:', symbol);
-          if (fullContractAddress) {
-            console.log('✅ Stored full contract address:', fullContractAddress);
-          } else {
-            console.log('⚠️ Only truncated address available:', contractAddress);
-          }
+      if (!portfolio[symbol]) {
+        portfolio[symbol] = {
+          symbol: symbol,
+          contractAddress: contractAddress, // May be truncated
+          fullContractAddress: fullContractAddress, // Full address if available
+          amount: 0,
+          avgPrice: 0,
+          totalInvested: 0,
+          lastPrice: tokenPrice,
+          source: 'snipe',
+          firstSeen: Date.now(),
+          snipeHistory: [],
+          priceUpdateInterval: null, // For real-time price updates
+        };
+        console.log('🆕 Created new portfolio entry for:', symbol);
+        if (fullContractAddress) {
+          console.log('✅ Stored full contract address:', fullContractAddress);
+        } else {
+          console.log('⚠️ Only truncated address available:', contractAddress);
         }
+      }
 
       // Add the snipe as a buy order
       const currentHolding = portfolio[symbol];
-      const newTotalAmount = currentHolding.amount + tokensToBuy;
-      const newTotalInvested = currentHolding.totalInvested + snipeAmountUSD;
+      const currentAmount = currentHolding.amount || 0; // Initialize to 0 if undefined
+      const currentInvested = currentHolding.totalInvested || 0; // Initialize to 0 if undefined
+      const newTotalAmount = currentAmount + tokensToBuy;
+      const newTotalInvested = currentInvested + snipeAmountUSD;
 
       currentHolding.amount = newTotalAmount;
       currentHolding.totalInvested = newTotalInvested;
       currentHolding.avgPrice = newTotalInvested / newTotalAmount;
       currentHolding.lastPrice = tokenPrice;
 
-        // Update contract addresses if we found better ones
-        if (fullContractAddress) {
-          currentHolding.fullContractAddress = fullContractAddress;
-          console.log('✅ Updated full contract address for', symbol, ':', fullContractAddress);
-        }
-        if (contractAddress && !contractAddress.includes('...')) {
-          currentHolding.contractAddress = contractAddress;
-          console.log('✅ Updated main contract address for', symbol, ':', contractAddress);
-        }
+      console.log(`📊 Updated holding for ${symbol}:`, {
+        amount: currentHolding.amount,
+        totalInvested: currentHolding.totalInvested,
+        avgPrice: currentHolding.avgPrice,
+        lastPrice: currentHolding.lastPrice
+      });
+
+      // Update contract addresses if we found better ones
+      if (fullContractAddress) {
+        currentHolding.fullContractAddress = fullContractAddress;
+        console.log(
+          '✅ Updated full contract address for',
+          symbol,
+          ':',
+          fullContractAddress
+        );
+      }
+      if (contractAddress && !contractAddress.includes('...')) {
+        currentHolding.contractAddress = contractAddress;
+        console.log(
+          '✅ Updated main contract address for',
+          symbol,
+          ':',
+          contractAddress
+        );
+      }
 
       // Track snipe history
       currentHolding.snipeHistory = currentHolding.snipeHistory || [];
@@ -745,9 +783,15 @@ class BackgroundService {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
 
       // Strategy 1: Try PumpPortal API (best for Pump.fun tokens, requires full address)
-      if (contractAddress && !contractAddress.includes('...') && this.isValidContractAddress(contractAddress)) {
+      if (
+        contractAddress &&
+        !contractAddress.includes('...') &&
+        this.isValidContractAddress(contractAddress)
+      ) {
         try {
-          console.log(`🔍 Trying PumpPortal API for ${symbol} with full address...`);
+          console.log(
+            `🔍 Trying PumpPortal API for ${symbol} with full address...`
+          );
           const pumpportalResponse = await fetch(
             `https://api.pumpportal.fun/coin/${contractAddress}`,
             {
@@ -793,9 +837,15 @@ class BackgroundService {
       }
 
       // Strategy 2: Try Jupiter API (works well for Solana tokens, requires full address)
-      if (contractAddress && !contractAddress.includes('...') && this.isValidContractAddress(contractAddress)) {
+      if (
+        contractAddress &&
+        !contractAddress.includes('...') &&
+        this.isValidContractAddress(contractAddress)
+      ) {
         try {
-          console.log(`🔍 Trying Jupiter API for ${symbol} with full address...`);
+          console.log(
+            `🔍 Trying Jupiter API for ${symbol} with full address...`
+          );
           const jupiterResponse = await fetch(
             `https://price.jup.ag/v4/price?ids=${contractAddress}`,
             {
@@ -824,9 +874,15 @@ class BackgroundService {
       }
 
       // Strategy 3: Try Pump.fun API directly (sometimes works, requires full address)
-      if (contractAddress && !contractAddress.includes('...') && this.isValidContractAddress(contractAddress)) {
+      if (
+        contractAddress &&
+        !contractAddress.includes('...') &&
+        this.isValidContractAddress(contractAddress)
+      ) {
         try {
-          console.log(`🔍 Trying Pump.fun API directly for ${symbol} with full address...`);
+          console.log(
+            `🔍 Trying Pump.fun API directly for ${symbol} with full address...`
+          );
           const pumpfunResponse = await fetch(
             `https://frontend-api.pump.fun/coins/${contractAddress}`,
             {

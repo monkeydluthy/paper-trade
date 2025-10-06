@@ -758,7 +758,7 @@ class CryptoPaperTraderSidePanel {
       holdingElement.innerHTML = `
                 <div>
                     <div class="holding-symbol">${symbol}</div>
-                    <div class="holding-amount">${holding.amount.toFixed(
+                    <div class="holding-amount">${(holding.amount || 0).toFixed(
                       6
                     )} coins</div>
                 </div>
