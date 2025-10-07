@@ -5,7 +5,7 @@
   "description": "Paper trade crypto with real-time price tracking from various platforms",
   "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
   "host_permissions": [
-    "https://*/*", 
+    "https://*/*",
     "http://*/*",
     "https://api.pumpportal.fun/*",
     "https://price.jup.ag/*",

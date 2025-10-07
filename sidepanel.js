@@ -93,7 +93,10 @@ class CryptoPaperTraderSidePanel {
         this.loadData().then(() => {
           this.updateUI();
           this.updatePortfolioView();
-          this.showNotification(`Added ${request.data.symbol} to portfolio!`, 'success');
+          this.showNotification(
+            `Added ${request.data.symbol} to portfolio!`,
+            'success'
+          );
         });
       } else if (request.action === 'priceUpdate') {
         console.log('📈 Price update received:', request.data);
@@ -101,7 +104,12 @@ class CryptoPaperTraderSidePanel {
         this.loadData().then(() => {
           this.updateUI();
           this.updatePortfolioView();
-          this.showNotification(`${request.data.symbol} price updated: ${this.formatPrice(request.data.oldPrice)} → ${this.formatPrice(request.data.newPrice)}`, 'info');
+          this.showNotification(
+            `${request.data.symbol} price updated: ${this.formatPrice(
+              request.data.oldPrice
+            )} → ${this.formatPrice(request.data.newPrice)}`,
+            'info'
+          );
         });
       }
     });
@@ -647,7 +655,13 @@ class CryptoPaperTraderSidePanel {
     );
     const totalInvestedSOL = totalInvestedUSD / this.solPriceUSD;
     const currentBalance = this.settings.startingBalanceSOL - totalInvestedSOL;
-    console.log(`💰 Balance calculation: ${this.settings.startingBalanceSOL} SOL - ${totalInvestedSOL.toFixed(4)} SOL = ${currentBalance.toFixed(4)} SOL`);
+    console.log(
+      `💰 Balance calculation: ${
+        this.settings.startingBalanceSOL
+      } SOL - ${totalInvestedSOL.toFixed(4)} SOL = ${currentBalance.toFixed(
+        4
+      )} SOL`
+    );
     return currentBalance;
   }
 
@@ -658,11 +672,13 @@ class CryptoPaperTraderSidePanel {
   getPortfolioValue() {
     let totalValue = 0;
     for (const [symbol, holding] of Object.entries(this.portfolio)) {
+      const amount = holding.amount || 0;
       if (this.currentCoin && this.currentCoin.symbol === symbol) {
-        totalValue += holding.amount * this.currentCoin.price;
+        totalValue += amount * this.currentCoin.price;
       } else {
-        // Use stored average price for other coins
-        totalValue += holding.amount * holding.avgPrice;
+        // Use lastPrice if available, fall back to avgPrice, then to 0
+        const price = holding.lastPrice || holding.avgPrice || 0;
+        totalValue += amount * price;
       }
     }
     return totalValue;
@@ -677,16 +693,21 @@ class CryptoPaperTraderSidePanel {
     const portfolioValueUSD = this.getPortfolioValue();
     const currentBalanceSOL = this.getCurrentBalanceSOL();
     const currentBalanceUSD = this.getCurrentBalanceUSD();
-    const totalValueSOL = currentBalanceSOL + (portfolioValueUSD / this.solPriceUSD);
+    const totalValueSOL =
+      currentBalanceSOL + portfolioValueUSD / this.solPriceUSD;
     const totalValueUSD = portfolioValueUSD + currentBalanceUSD;
 
-    document.getElementById('portfolioValueSOL').textContent = `${totalValueSOL.toFixed(2)} SOL`;
-    document.getElementById('portfolioValueUSD').textContent = `$${totalValueUSD.toFixed(2)}`;
+    document.getElementById(
+      'portfolioValueSOL'
+    ).textContent = `${totalValueSOL.toFixed(2)} SOL`;
+    document.getElementById(
+      'portfolioValueUSD'
+    ).textContent = `$${totalValueUSD.toFixed(2)}`;
   }
 
   updatePortfolioView() {
     console.log('📊 Updating portfolio view with data:', this.portfolio);
-    
+
     const totalInvested = Object.values(this.portfolio).reduce(
       (sum, holding) => sum + (holding.totalInvested || 0),
       0
@@ -694,7 +715,11 @@ class CryptoPaperTraderSidePanel {
     const currentValue = this.getPortfolioValue();
     const pnl = currentValue - totalInvested;
 
-    console.log(`💰 Portfolio calculations: Total Invested=$${totalInvested.toFixed(2)}, Current Value=$${currentValue.toFixed(2)}, P&L=$${pnl.toFixed(2)}`);
+    console.log(
+      `💰 Portfolio calculations: Total Invested=$${totalInvested.toFixed(
+        2
+      )}, Current Value=$${currentValue.toFixed(2)}, P&L=$${pnl.toFixed(2)}`
+    );
 
     document.getElementById(
       'totalInvested'
@@ -712,9 +737,9 @@ class CryptoPaperTraderSidePanel {
 
   formatPrice(price) {
     if (!price || price === 0) return '$0';
-    
+
     const absPrice = Math.abs(price);
-    
+
     if (absPrice >= 1000000000) {
       return `$${(price / 1000000000).toFixed(1)}B`;
     } else if (absPrice >= 1000000) {
@@ -730,11 +755,13 @@ class CryptoPaperTraderSidePanel {
 
   updateHoldingsList() {
     console.log('📈 Updating holdings list with portfolio:', this.portfolio);
-    
+
     const holdingsList = document.getElementById('holdingsList');
     holdingsList.innerHTML = '';
 
-    console.log(`📈 Portfolio has ${Object.keys(this.portfolio).length} holdings`);
+    console.log(
+      `📈 Portfolio has ${Object.keys(this.portfolio).length} holdings`
+    );
 
     if (Object.keys(this.portfolio).length === 0) {
       console.log('📈 No holdings found, showing empty message');
@@ -763,11 +790,15 @@ class CryptoPaperTraderSidePanel {
                     )} coins</div>
                 </div>
                 <div>
-                    <div class="holding-value">${this.formatPrice(currentValue)}</div>
+                    <div class="holding-value">${this.formatPrice(
+                      currentValue
+                    )}</div>
                     <div class="holding-pnl ${
                       pnl >= 0 ? 'positive' : 'negative'
                     }">
-                        ${pnl >= 0 ? '+' : ''}${this.formatPrice(pnl)} (${pnlPercent.toFixed(1)}%)
+                        ${pnl >= 0 ? '+' : ''}${this.formatPrice(
+        pnl
+      )} (${pnlPercent.toFixed(1)}%)
                     </div>
                 </div>
             `;
@@ -837,7 +868,11 @@ class CryptoPaperTraderSidePanel {
 
   async loadData() {
     try {
-      const result = await chrome.storage.local.get(['portfolio', 'settings', 'solPriceUSD']);
+      const result = await chrome.storage.local.get([
+        'portfolio',
+        'settings',
+        'solPriceUSD',
+      ]);
       this.portfolio = result.portfolio || {};
       this.settings = { ...this.settings, ...result.settings };
       this.solPriceUSD = result.solPriceUSD || 100;
@@ -854,10 +889,12 @@ class CryptoPaperTraderSidePanel {
   async fetchSOLPrice() {
     try {
       // Fetch SOL price from CoinGecko API
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
+      );
       const data = await response.json();
       this.solPriceUSD = data.solana.usd;
-      
+
       // Save SOL price to storage
       await chrome.storage.local.set({ solPriceUSD: this.solPriceUSD });
     } catch (error) {
@@ -955,7 +992,9 @@ class CryptoPaperTraderSidePanel {
         </div>
         <div class="snipe-details">
           <div class="snipe-info">
-            <span class="snipe-price">${this.formatPrice(snipe.price || 0)}</span>
+            <span class="snipe-price">${this.formatPrice(
+              snipe.price || 0
+            )}</span>
             <span class="snipe-source">${snipe.source}</span>
           </div>
           <div class="snipe-actions">

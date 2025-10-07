@@ -1222,36 +1222,36 @@ class AxiomSnipeInjector {
       }
     }
 
-     // If still no price found, try to find any number that could be a price
-     const numberPatterns = [
-       /([0-9]+\.[0-9]+[KMB]?)/g, // 4.58M, 157K
-       /([0-9]+[KMB])/g, // 458M, 157K
-     ];
+    // If still no price found, try to find any number that could be a price
+    const numberPatterns = [
+      /([0-9]+\.[0-9]+[KMB]?)/g, // 4.58M, 157K
+      /([0-9]+[KMB])/g, // 458M, 157K
+    ];
 
-     for (const pattern of numberPatterns) {
-       const matches = text.match(pattern);
-       if (matches) {
-         for (const match of matches) {
-           let price = parseFloat(match.replace(/[KMB]/g, ''));
+    for (const pattern of numberPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          let price = parseFloat(match.replace(/[KMB]/g, ''));
 
-           // Handle K, M, B suffixes
-           if (match.toUpperCase().includes('K')) price *= 1000;
-           if (match.toUpperCase().includes('M')) price *= 1000000;
-           if (match.toUpperCase().includes('B')) price *= 1000000000;
+          // Handle K, M, B suffixes
+          if (match.toUpperCase().includes('K')) price *= 1000;
+          if (match.toUpperCase().includes('M')) price *= 1000000;
+          if (match.toUpperCase().includes('B')) price *= 1000000000;
 
-           // Accept reasonable prices (but skip if we already found a good one)
-           if (price >= 100 && price <= 100000000000) {
-             console.log(
-               '✅ Found reasonable number price:',
-               price,
-               'from:',
-               match
-             );
-             return price;
-           }
-         }
-       }
-     }
+          // Accept reasonable prices (but skip if we already found a good one)
+          if (price >= 100 && price <= 100000000000) {
+            console.log(
+              '✅ Found reasonable number price:',
+              price,
+              'from:',
+              match
+            );
+            return price;
+          }
+        }
+      }
+    }
 
     // If no price found, use a default memecoin price
     console.log('⚠️ No price found, using default memecoin price');

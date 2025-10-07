@@ -163,7 +163,7 @@ class BackgroundService {
         try {
           console.log(`🔄 Updating price for ${symbol}...`);
           console.log(`📊 Holding data for ${symbol}:`, holding);
-          
+
           // Prefer full contract address, fall back to truncated
           const contractAddress =
             holding.fullContractAddress || holding.contractAddress;
@@ -171,7 +171,7 @@ class BackgroundService {
           console.log(`🔍 Contract address check for ${symbol}:`, {
             fullContractAddress: holding.fullContractAddress,
             contractAddress: holding.contractAddress,
-            finalAddress: contractAddress
+            finalAddress: contractAddress,
           });
 
           if (contractAddress) {
@@ -646,7 +646,7 @@ class BackgroundService {
         amount: currentHolding.amount,
         totalInvested: currentHolding.totalInvested,
         avgPrice: currentHolding.avgPrice,
-        lastPrice: currentHolding.lastPrice
+        lastPrice: currentHolding.lastPrice,
       });
 
       // Update contract addresses if we found better ones
@@ -754,8 +754,10 @@ class BackgroundService {
         }
       }, 30000); // 30 seconds
 
-      // Store interval ID in portfolio
-      portfolio[symbol] = portfolio[symbol] || {};
+      // Store interval ID in portfolio (preserve existing data)
+      if (!portfolio[symbol]) {
+        portfolio[symbol] = {};
+      }
       portfolio[symbol].priceUpdateInterval = intervalId;
       chrome.storage.local.set({ portfolio });
 
