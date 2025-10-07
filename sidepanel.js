@@ -707,6 +707,17 @@ class CryptoPaperTraderSidePanel {
 
   updatePortfolioView() {
     console.log('📊 Updating portfolio view with data:', this.portfolio);
+    console.log('📊 Portfolio entries:', Object.entries(this.portfolio));
+    
+    // Debug each holding
+    Object.entries(this.portfolio).forEach(([symbol, holding]) => {
+      console.log(`📊 Holding ${symbol}:`, {
+        amount: holding.amount,
+        totalInvested: holding.totalInvested,
+        avgPrice: holding.avgPrice,
+        lastPrice: holding.lastPrice
+      });
+    });
 
     const totalInvested = Object.values(this.portfolio).reduce(
       (sum, holding) => sum + (holding.totalInvested || 0),

@@ -541,11 +541,15 @@ class AxiomSnipeInjector {
       tokenData.price === 0.000001
     ) {
       console.log('🔄 Trying parent elements for better data...');
+      console.log('🔍 Current tokenData before parent search:', tokenData);
       currentElement = button.parentElement;
       for (let i = 0; i < 5 && currentElement; i++) {
+        console.log(`🔍 Checking parent element ${i}:`, currentElement.tagName, currentElement.className);
         const symbol = this.extractSymbolFromAxiom(currentElement);
         const contract = this.extractContractFromAxiom(currentElement);
         const price = this.extractPriceFromAxiom(currentElement);
+        
+        console.log(`🔍 Parent ${i} results:`, { symbol, contract, price });
 
         if (
           symbol &&
