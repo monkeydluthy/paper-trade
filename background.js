@@ -769,19 +769,18 @@ class BackgroundService {
       `✅ Price update interval started for ${symbol} (ID: ${intervalId})`
     );
 
-      // Do an immediate price fetch
-      setTimeout(async () => {
-        try {
-          console.log(`🚀 Immediate price fetch for ${symbol}...`);
-          const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
-          if (newPrice && newPrice > 0) {
-            await this.updateTokenPrice(symbol, newPrice);
-          }
-        } catch (error) {
-          console.error(`Error in immediate price fetch for ${symbol}:`, error);
+    // Do an immediate price fetch
+    setTimeout(async () => {
+      try {
+        console.log(`🚀 Immediate price fetch for ${symbol}...`);
+        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+        if (newPrice && newPrice > 0) {
+          await this.updateTokenPrice(symbol, newPrice);
         }
-      }, 2000); // 2 seconds delay for immediate fetch
-    });
+      } catch (error) {
+        console.error(`Error in immediate price fetch for ${symbol}:`, error);
+      }
+    }, 2000); // 2 seconds delay for immediate fetch
   }
 
   async fetchTokenPrice(symbol, contractAddress) {
