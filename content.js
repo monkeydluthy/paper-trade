@@ -1043,15 +1043,47 @@ class AxiomSnipeInjector {
     );
 
     // First, try to find full contract address from copy buttons or data attributes
-    const copyButtons = element.querySelectorAll('[data-clipboard-text], [data-copy], [data-address], [data-contract], [data-value], button[title*="copy"], button[aria-label*="copy"], [class*="copy"], [class*="clipboard"], [class*="paste"]');
+    // Axiom-specific selectors for copy buttons and contract addresses
+    const copySelectors = [
+      // Common copy button patterns
+      '[data-clipboard-text]',
+      '[data-copy]', 
+      '[data-address]',
+      '[data-contract]',
+      '[data-value]',
+      // Axiom-specific patterns
+      'button[title*="copy"]',
+      'button[aria-label*="copy"]',
+      '[class*="copy"]',
+      '[class*="clipboard"]',
+      '[class*="paste"]',
+      // Icon-based selectors
+      'button svg[class*="copy"]',
+      'button svg[class*="clipboard"]',
+      '[class*="copy-icon"]',
+      '[class*="clipboard-icon"]',
+      // Generic button with copy-like attributes
+      'button[onclick*="copy"]',
+      'button[onclick*="clipboard"]'
+    ];
+    
+    const copyButtons = element.querySelectorAll(copySelectors.join(', '));
+    console.log(`🔍 Found ${copyButtons.length} potential copy buttons`);
     
     for (const button of copyButtons) {
+      console.log('🔍 Checking copy button:', button.tagName, button.className, button.outerHTML.substring(0, 200));
+      
+      // Check various attributes for the full address
       const fullAddress = button.getAttribute('data-clipboard-text') || 
                          button.getAttribute('data-copy') || 
                          button.getAttribute('data-address') || 
                          button.getAttribute('data-contract') || 
                          button.getAttribute('data-value') ||
+                         button.getAttribute('title') ||
+                         button.getAttribute('aria-label') ||
                          button.textContent?.trim();
+      
+      console.log('🔍 Copy button address candidate:', fullAddress);
       
       if (fullAddress && this.isValidAddress(fullAddress)) {
         console.log('✅ Found full contract address from copy button:', fullAddress);
@@ -1097,14 +1129,22 @@ class AxiomSnipeInjector {
       '[class*="address"]',
       '[class*="contract"]',
       '[class*="hash"]',
+      '[class*="token-address"]',
+      '[class*="contract-address"]',
       '[data-address]',
       '[data-contract]',
       '[data-value]',
+      '[data-token-address]',
+      '[data-contract-address]',
       'button',
       'span',
       'div',
       'p',
       'a',
+      // Axiom-specific patterns
+      '[class*="token"]',
+      '[class*="pair"]',
+      '[class*="symbol"]'
     ];
 
     for (const selector of contractSelectors) {
