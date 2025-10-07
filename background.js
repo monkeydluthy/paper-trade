@@ -647,6 +647,8 @@ class BackgroundService {
         totalInvested: currentHolding.totalInvested,
         avgPrice: currentHolding.avgPrice,
         lastPrice: currentHolding.lastPrice,
+        contractAddress: currentHolding.contractAddress,
+        fullContractAddress: currentHolding.fullContractAddress,
       });
 
       // Update contract addresses if we found better ones
@@ -687,7 +689,7 @@ class BackgroundService {
 
       // Start real-time price updates for this token (prefer full address)
       const addressForUpdates = fullContractAddress || contractAddress;
-      this.startPriceUpdates(symbol, addressForUpdates);
+      await this.startPriceUpdates(symbol, addressForUpdates);
 
       console.log('💾 Saving portfolio to storage...');
       await chrome.storage.local.set({ portfolio });
@@ -727,43 +729,45 @@ class BackgroundService {
     }
   }
 
-  startPriceUpdates(symbol, contractAddress) {
+  async startPriceUpdates(symbol, contractAddress) {
     console.log(`🔄 Starting price updates for ${symbol} (${contractAddress})`);
 
+    // Get current portfolio data
+    const { portfolio } = await chrome.storage.local.get(['portfolio']);
+    const currentPortfolio = portfolio || {};
+    
     // Clear any existing interval for this token
-    chrome.storage.local.get(['portfolio'], (result) => {
-      const portfolio = result.portfolio || {};
-      if (portfolio[symbol] && portfolio[symbol].priceUpdateInterval) {
-        clearInterval(portfolio[symbol].priceUpdateInterval);
-        console.log(`🔄 Cleared existing interval for ${symbol}`);
-      }
+    if (currentPortfolio[symbol] && currentPortfolio[symbol].priceUpdateInterval) {
+      clearInterval(currentPortfolio[symbol].priceUpdateInterval);
+      console.log(`🔄 Cleared existing interval for ${symbol}`);
+    }
 
-      // Update price every 30 seconds
-      const intervalId = setInterval(async () => {
-        try {
-          console.log(`📡 Fetching price update for ${symbol}...`);
-          const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
-          if (newPrice && newPrice > 0) {
-            console.log(`📈 New price for ${symbol}: $${newPrice}`);
-            await this.updateTokenPrice(symbol, newPrice);
-          } else {
-            console.log(`⚠️ No valid price update for ${symbol}`);
-          }
-        } catch (error) {
-          console.error(`Error updating price for ${symbol}:`, error);
+    // Update price every 30 seconds
+    const intervalId = setInterval(async () => {
+      try {
+        console.log(`📡 Fetching price update for ${symbol}...`);
+        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+        if (newPrice && newPrice > 0) {
+          console.log(`📈 New price for ${symbol}: $${newPrice}`);
+          await this.updateTokenPrice(symbol, newPrice);
+        } else {
+          console.log(`⚠️ No valid price update for ${symbol}`);
         }
-      }, 30000); // 30 seconds
-
-      // Store interval ID in portfolio (preserve existing data)
-      if (!portfolio[symbol]) {
-        portfolio[symbol] = {};
+      } catch (error) {
+        console.error(`Error updating price for ${symbol}:`, error);
       }
-      portfolio[symbol].priceUpdateInterval = intervalId;
-      chrome.storage.local.set({ portfolio });
+    }, 30000); // 30 seconds
 
-      console.log(
-        `✅ Price update interval started for ${symbol} (ID: ${intervalId})`
-      );
+    // Store interval ID in portfolio (preserve existing data)
+    if (!currentPortfolio[symbol]) {
+      currentPortfolio[symbol] = {};
+    }
+    currentPortfolio[symbol].priceUpdateInterval = intervalId;
+    await chrome.storage.local.set({ portfolio: currentPortfolio });
+
+    console.log(
+      `✅ Price update interval started for ${symbol} (ID: ${intervalId})`
+    );
 
       // Do an immediate price fetch
       setTimeout(async () => {
