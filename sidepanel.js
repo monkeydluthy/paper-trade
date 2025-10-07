@@ -697,6 +697,14 @@ class CryptoPaperTraderSidePanel {
       currentBalanceSOL + portfolioValueUSD / this.solPriceUSD;
     const totalValueUSD = portfolioValueUSD + currentBalanceUSD;
 
+    console.log('💰 Balance update calculation:', {
+      portfolioValueUSD,
+      currentBalanceSOL,
+      currentBalanceUSD,
+      totalValueSOL,
+      totalValueUSD
+    });
+
     document.getElementById(
       'portfolioValueSOL'
     ).textContent = `${totalValueSOL.toFixed(2)} SOL`;

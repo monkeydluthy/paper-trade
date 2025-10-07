@@ -903,6 +903,11 @@ class AxiomSnipeInjector {
       /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i, // "SOL Speed Of Light"
       /([A-Z][a-zA-Z]+)\s+Of\s+Light/i, // "SOL Of Light"
       /([A-Z][a-zA-Z]+)\s+Inconvenience/i, // "BNB Inconvenience"
+      
+      // PumpFun patterns
+      /([A-Z][a-zA-Z]+)\s+PumpFun/i, // "PFF PumpFunFloki"
+      /([A-Z][a-zA-Z]+)\s+Pump/i, // "PFF Pump"
+      /([A-Z][a-zA-Z]+)\s+Fun/i, // "PFF Fun"
 
       // General patterns
       /([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\s+Coin/i, // "Inconvenience Coin", "Bitcoin Coin"
@@ -1036,6 +1041,23 @@ class AxiomSnipeInjector {
       '📦 Element HTML for contract:',
       element.outerHTML.substring(0, 500) + '...'
     );
+
+    // First, try to find full contract address from copy buttons or data attributes
+    const copyButtons = element.querySelectorAll('[data-clipboard-text], [data-copy], [data-address], [data-contract], [data-value], button[title*="copy"], button[aria-label*="copy"], [class*="copy"], [class*="clipboard"], [class*="paste"]');
+    
+    for (const button of copyButtons) {
+      const fullAddress = button.getAttribute('data-clipboard-text') || 
+                         button.getAttribute('data-copy') || 
+                         button.getAttribute('data-address') || 
+                         button.getAttribute('data-contract') || 
+                         button.getAttribute('data-value') ||
+                         button.textContent?.trim();
+      
+      if (fullAddress && this.isValidAddress(fullAddress)) {
+        console.log('✅ Found full contract address from copy button:', fullAddress);
+        return fullAddress;
+      }
+    }
 
     const text = element.textContent || '';
     console.log(
