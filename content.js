@@ -1064,7 +1064,14 @@ class AxiomSnipeInjector {
       '[class*="clipboard-icon"]',
       // Generic button with copy-like attributes
       'button[onclick*="copy"]',
-      'button[onclick*="clipboard"]'
+      'button[onclick*="clipboard"]',
+      // More specific Axiom patterns
+      'button[class*="icon"]',
+      '[class*="address"] button',
+      '[class*="contract"] button',
+      'button svg',
+      'button[data-testid*="copy"]',
+      'button[data-testid*="address"]'
     ];
     
     const copyButtons = element.querySelectorAll(copySelectors.join(', '));
@@ -1088,6 +1095,21 @@ class AxiomSnipeInjector {
       if (fullAddress && this.isValidAddress(fullAddress)) {
         console.log('✅ Found full contract address from copy button:', fullAddress);
         return fullAddress;
+      }
+    }
+
+    // Also check for onclick handlers that might contain the full address
+    const allButtons = element.querySelectorAll('button');
+    for (const button of allButtons) {
+      const onclick = button.getAttribute('onclick');
+      if (onclick) {
+        console.log('🔍 Checking onclick handler:', onclick);
+        // Look for addresses in onclick handlers
+        const addressMatch = onclick.match(/([A-Za-z0-9]{32,44})/);
+        if (addressMatch && this.isValidAddress(addressMatch[1])) {
+          console.log('✅ Found full contract address from onclick:', addressMatch[1]);
+          return addressMatch[1];
+        }
       }
     }
 
@@ -1168,6 +1190,58 @@ class AxiomSnipeInjector {
           if (address.includes('...') && address.length > 10) {
             console.log('⚠️ Found truncated contract via selector:', address);
             return address;
+          }
+        }
+      }
+    }
+
+    // NEW: Look for full addresses in the entire page DOM by searching for specific patterns
+    // This is more aggressive but should find full addresses that are displayed elsewhere
+    console.log('🔍 Searching entire page for full contract addresses...');
+    
+    // Look for any element that contains a full contract address
+    const allElements = document.querySelectorAll('*');
+    const fullAddresses = new Set();
+    
+    for (const el of allElements) {
+      const text = el.textContent || '';
+      const attributes = Array.from(el.attributes || []).map(attr => attr.value);
+      
+      // Check text content
+      const textMatches = text.match(/\b([A-Za-z0-9]{32,44})\b/g);
+      if (textMatches) {
+        for (const match of textMatches) {
+          if (this.isValidAddress(match)) {
+            fullAddresses.add(match);
+          }
+        }
+      }
+      
+      // Check attributes
+      for (const attrValue of attributes) {
+        const attrMatches = attrValue.match(/\b([A-Za-z0-9]{32,44})\b/g);
+        if (attrMatches) {
+          for (const match of attrMatches) {
+            if (this.isValidAddress(match)) {
+              fullAddresses.add(match);
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('🔍 Found full addresses on page:', Array.from(fullAddresses));
+    
+    // If we found full addresses, try to match them with our truncated one
+    if (fullAddresses.size > 0) {
+      const truncatedAddress = this.extractTruncatedAddress(element);
+      if (truncatedAddress) {
+        console.log('🔍 Looking for match with truncated address:', truncatedAddress);
+        for (const fullAddress of fullAddresses) {
+          if (fullAddress.startsWith(truncatedAddress.substring(0, 4)) || 
+              fullAddress.endsWith(truncatedAddress.substring(truncatedAddress.length - 4))) {
+            console.log('✅ Matched truncated to full address:', truncatedAddress, '->', fullAddress);
+            return fullAddress;
           }
         }
       }
@@ -1334,6 +1408,24 @@ class AxiomSnipeInjector {
     const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
     return ethAddressRegex.test(address) || solanaAddressRegex.test(address);
+  }
+
+  extractTruncatedAddress(element) {
+    // Extract truncated address from element text
+    const text = element.textContent || '';
+    const truncatedPatterns = [
+      /([A-Za-z0-9]{4})\.\.\.([A-Za-z0-9]{4})/, // Pattern like "Ck5D...BAGS"
+      /([A-Za-z0-9]{4})...([A-Za-z0-9]{4})/, // Pattern like "Ck5D...BAGS" (no dots)
+    ];
+    
+    for (const pattern of truncatedPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return match[0]; // Return the full truncated string
+      }
+    }
+    
+    return null;
   }
 
   formatPrice(price) {

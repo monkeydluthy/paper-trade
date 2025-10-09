@@ -594,6 +594,8 @@ class BackgroundService {
         } else if (this.isValidContractAddress(contractAddress)) {
           console.log('✅ Full contract address detected:', contractAddress);
           fullContractAddress = contractAddress;
+          // Use full address as the main contract address
+          contractAddress = fullContractAddress;
         } else {
           console.log('⚠️ Invalid contract address format:', contractAddress);
         }
@@ -627,6 +629,14 @@ class BackgroundService {
           console.log('✅ Stored full contract address:', fullContractAddress);
         } else {
           console.log('⚠️ Only truncated address available:', contractAddress);
+        }
+      } else {
+        // Update existing portfolio entry with better contract address if available
+        const existingEntry = portfolio[symbol];
+        if (fullContractAddress && !existingEntry.fullContractAddress) {
+          console.log('✅ Upgrading existing entry with full contract address:', fullContractAddress);
+          existingEntry.fullContractAddress = fullContractAddress;
+          existingEntry.contractAddress = fullContractAddress; // Update main address too
         }
       }
 

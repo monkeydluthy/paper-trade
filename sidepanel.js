@@ -912,8 +912,21 @@ class CryptoPaperTraderSidePanel {
         'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
       );
       const data = await response.json();
-      this.solPriceUSD = data.solana.usd;
+      
+      // Handle different response structures
+      if (data && data.solana && data.solana.usd) {
+        this.solPriceUSD = data.solana.usd;
+      } else if (data && data.solana && typeof data.solana === 'number') {
+        this.solPriceUSD = data.solana;
+      } else if (data && data.solana && data.solana.price) {
+        this.solPriceUSD = data.solana.price;
+      } else {
+        console.warn('Unexpected SOL price API response structure:', data);
+        this.solPriceUSD = 100;
+      }
 
+      console.log('✅ SOL price fetched:', this.solPriceUSD);
+      
       // Save SOL price to storage
       await chrome.storage.local.set({ solPriceUSD: this.solPriceUSD });
     } catch (error) {
