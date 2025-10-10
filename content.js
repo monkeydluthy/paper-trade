@@ -5,7 +5,29 @@ class AxiomSnipeInjector {
   constructor() {
     this.observers = new Map();
     this.injectedButtons = new Set();
+    this.lastCopiedAddress = null; // Store the last copied contract address
+    this.setupGlobalClipboardInterceptor(); // Set up global clipboard monitoring
     this.init();
+  }
+
+  setupGlobalClipboardInterceptor() {
+    // Intercept clipboard writes globally to capture contract addresses
+    const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+    const self = this;
+    
+    navigator.clipboard.writeText = async function(text) {
+      console.log('📋 Global clipboard interceptor - captured write:', text);
+      
+      // Check if it's a valid contract address
+      if (text && text.length >= 32 && /^[A-Za-z0-9]+$/.test(text)) {
+        console.log('✅ Detected contract address in clipboard:', text);
+        self.lastCopiedAddress = text;
+      }
+      
+      return originalWriteText(text);
+    };
+    
+    console.log('🔍 Global clipboard interceptor installed');
   }
 
   init() {
@@ -1058,48 +1080,20 @@ class AxiomSnipeInjector {
       try {
         console.log('🔍 Attempting to click copy button:', button.outerHTML.substring(0, 150));
         
-        // Set up clipboard capture BEFORE clicking
-        let capturedText = null;
-        const capturePromise = new Promise((resolve) => {
-          // Method 1: Listen for copy event
-          const copyHandler = (e) => {
-            const text = e.clipboardData?.getData('text');
-            console.log('📋 Captured via copy event:', text);
-            capturedText = text;
-            document.removeEventListener('copy', copyHandler);
-            resolve(text);
-          };
-          document.addEventListener('copy', copyHandler);
-          
-          // Method 2: Intercept clipboard write
-          const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
-          navigator.clipboard.writeText = async function(text) {
-            console.log('📋 Captured via clipboard API:', text);
-            capturedText = text;
-            navigator.clipboard.writeText = originalWriteText; // Restore
-            document.removeEventListener('copy', copyHandler);
-            resolve(text);
-            return originalWriteText(text);
-          };
-          
-          // Fallback timeout
-          setTimeout(() => {
-            document.removeEventListener('copy', copyHandler);
-            navigator.clipboard.writeText = originalWriteText;
-            resolve(capturedText);
-          }, 1000);
-        });
+        // Clear the last copied address before clicking
+        this.lastCopiedAddress = null;
 
         // Click the button
         button.click();
         console.log('🖱️ Clicked button, waiting for clipboard...');
 
-        // Wait for clipboard capture
-        const clipboardText = await capturePromise;
+        // Wait a bit for the clipboard to be written
+        await new Promise(resolve => setTimeout(resolve, 300));
         
-        if (clipboardText && this.isValidAddress(clipboardText)) {
-          console.log('✅ Successfully extracted full contract address by clicking copy button:', clipboardText);
-          return clipboardText;
+        // Check if our global interceptor caught an address
+        if (this.lastCopiedAddress && this.isValidAddress(this.lastCopiedAddress)) {
+          console.log('✅ Successfully extracted full contract address via global interceptor:', this.lastCopiedAddress);
+          return this.lastCopiedAddress;
         }
         
         // Also try reading clipboard directly (with focus)
