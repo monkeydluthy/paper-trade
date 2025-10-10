@@ -556,11 +556,12 @@ class AxiomSnipeInjector {
         this.extractPriceFromAxiom(bestContainer) || tokenData.price;
     }
 
-    // Method 2: If we didn't find good data, try parent elements
+    // Method 2: If we didn't find good data OR missing contract address, try parent elements
     if (
       tokenData.symbol === 'Unknown' ||
       !tokenData.price ||
-      tokenData.price === 0.000001
+      tokenData.price === 0.000001 ||
+      !tokenData.contractAddress
     ) {
       console.log('🔄 Trying parent elements for better data...');
       console.log('🔍 Current tokenData before parent search:', tokenData);
@@ -611,6 +612,8 @@ class AxiomSnipeInjector {
         tokenData.symbol === 'Unknown'
       )
         tokenData.symbol = axiomData.symbol;
+      // Only accept contract addresses from this method if we still don't have one
+      // This is a fallback that will accept truncated addresses as a last resort
       if (axiomData.contractAddress && !tokenData.contractAddress)
         tokenData.contractAddress = axiomData.contractAddress;
       if (axiomData.price && axiomData.price !== 0.000001 && !tokenData.price)
@@ -1065,11 +1068,22 @@ class AxiomSnipeInjector {
     );
 
     // NEW METHOD: Try to click copy buttons and capture clipboard content
-    const copyButtonsWithIcons = Array.from(element.querySelectorAll('button')).filter(btn => {
+    const allButtons = Array.from(element.querySelectorAll('button'));
+    console.log(`🔍 Total buttons in element: ${allButtons.length}`);
+    
+    const copyButtonsWithIcons = allButtons.filter(btn => {
       // Find buttons that have SVG icons (likely copy buttons)
       const hasSvg = btn.querySelector('svg');
       const isEmpty = btn.textContent?.trim() === '';
       const hasIconClass = btn.className.toLowerCase().includes('icon');
+      
+      console.log(`🔍 Button check:`, {
+        hasSvg,
+        isEmpty,
+        hasIconClass,
+        text: btn.textContent?.substring(0, 20),
+        className: btn.className
+      });
       
       return (hasSvg && isEmpty) || hasIconClass;
     });
