@@ -83,11 +83,6 @@ class AxiomSnipeInjector {
   }
 
   setupAxiomObserver() {
-    // TEMPORARILY DISABLED FOR DEBUGGING
-    console.log('⏸️ Axiom observer DISABLED for debugging');
-    console.log('💡 To manually inject, use the "Inject into Axiom" button in the extension popup');
-    return;
-    
     const observer = new MutationObserver((mutations) => {
       let shouldInject = false;
 
