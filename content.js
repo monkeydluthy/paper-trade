@@ -1061,23 +1061,38 @@ class AxiomSnipeInjector {
         // Set up clipboard capture BEFORE clicking
         let capturedText = null;
         const capturePromise = new Promise((resolve) => {
-          // Intercept clipboard write
+          // Method 1: Listen for copy event
+          const copyHandler = (e) => {
+            const text = e.clipboardData?.getData('text');
+            console.log('📋 Captured via copy event:', text);
+            capturedText = text;
+            document.removeEventListener('copy', copyHandler);
+            resolve(text);
+          };
+          document.addEventListener('copy', copyHandler);
+          
+          // Method 2: Intercept clipboard write
           const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
           navigator.clipboard.writeText = async function(text) {
-            console.log('📋 Captured clipboard write:', text);
+            console.log('📋 Captured via clipboard API:', text);
             capturedText = text;
             navigator.clipboard.writeText = originalWriteText; // Restore
+            document.removeEventListener('copy', copyHandler);
             resolve(text);
             return originalWriteText(text);
           };
           
           // Fallback timeout
-          setTimeout(() => resolve(null), 1000);
+          setTimeout(() => {
+            document.removeEventListener('copy', copyHandler);
+            navigator.clipboard.writeText = originalWriteText;
+            resolve(capturedText);
+          }, 1000);
         });
 
         // Click the button
         button.click();
-        console.log('🖱️ Clicked button');
+        console.log('🖱️ Clicked button, waiting for clipboard...');
 
         // Wait for clipboard capture
         const clipboardText = await capturePromise;
@@ -1087,15 +1102,19 @@ class AxiomSnipeInjector {
           return clipboardText;
         }
         
-        // Also try reading clipboard directly
+        // Also try reading clipboard directly (with focus)
         try {
+          // Ensure document is focused before reading clipboard
+          window.focus();
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for focus
+          
           const readText = await navigator.clipboard.readText();
           if (readText && this.isValidAddress(readText)) {
             console.log('✅ Successfully extracted full contract address from clipboard:', readText);
             return readText;
           }
         } catch (e) {
-          console.log('⚠️ Cannot read clipboard (permission denied)');
+          console.log('⚠️ Cannot read clipboard:', e.message);
         }
         
       } catch (error) {
