@@ -443,7 +443,7 @@ class AxiomSnipeInjector {
 
     cancelBtn.addEventListener('click', cleanup);
 
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.addEventListener('click', async () => {
       const amount = parseFloat(amountInput.value) || 0;
       if (amount <= 0) {
         alert('Please enter a valid amount');
@@ -451,7 +451,7 @@ class AxiomSnipeInjector {
       }
 
       // Extract token data from the surrounding context
-      const tokenData = this.extractTokenDataFromContext(instantBuyButton);
+      const tokenData = await this.extractTokenDataFromContext(instantBuyButton);
       tokenData.amount = amount;
 
       // Send message to background script
@@ -489,7 +489,7 @@ class AxiomSnipeInjector {
     });
   }
 
-  extractTokenDataFromContext(button) {
+  async extractTokenDataFromContext(button) {
     console.log('🔍 Extracting token data from Axiom context...');
     let tokenData = {
       symbol: 'Unknown',
@@ -528,7 +528,7 @@ class AxiomSnipeInjector {
       tokenData.symbol =
         this.extractSymbolFromAxiom(bestContainer) || tokenData.symbol;
       tokenData.contractAddress =
-        this.extractContractFromAxiom(bestContainer) ||
+        await this.extractContractFromAxiom(bestContainer) ||
         tokenData.contractAddress;
       tokenData.price =
         this.extractPriceFromAxiom(bestContainer) || tokenData.price;
@@ -546,7 +546,7 @@ class AxiomSnipeInjector {
       for (let i = 0; i < 5 && currentElement; i++) {
         console.log(`🔍 Checking parent element ${i}:`, currentElement.tagName, currentElement.className);
         const symbol = this.extractSymbolFromAxiom(currentElement);
-        const contract = this.extractContractFromAxiom(currentElement);
+        const contract = await this.extractContractFromAxiom(currentElement);
         const price = this.extractPriceFromAxiom(currentElement);
         
         console.log(`🔍 Parent ${i} results:`, { symbol, contract, price });
@@ -1035,15 +1035,75 @@ class AxiomSnipeInjector {
     return null;
   }
 
-  extractContractFromAxiom(element) {
+  async extractContractFromAxiom(element) {
     console.log('🔍 Extracting contract from Axiom element...');
     console.log(
       '📦 Element HTML for contract:',
       element.outerHTML.substring(0, 500) + '...'
     );
 
-    // First, try to find full contract address from copy buttons or data attributes
-    // Axiom-specific selectors for copy buttons and contract addresses
+    // NEW METHOD: Try to click copy buttons and capture clipboard content
+    const copyButtonsWithIcons = Array.from(element.querySelectorAll('button')).filter(btn => {
+      // Find buttons that have SVG icons (likely copy buttons)
+      const hasSvg = btn.querySelector('svg');
+      const isEmpty = btn.textContent?.trim() === '';
+      const hasIconClass = btn.className.toLowerCase().includes('icon');
+      
+      return (hasSvg && isEmpty) || hasIconClass;
+    });
+
+    console.log(`🔍 Found ${copyButtonsWithIcons.length} icon-only buttons (potential copy buttons)`);
+
+    for (const button of copyButtonsWithIcons) {
+      try {
+        console.log('🔍 Attempting to click copy button:', button.outerHTML.substring(0, 150));
+        
+        // Set up clipboard capture BEFORE clicking
+        let capturedText = null;
+        const capturePromise = new Promise((resolve) => {
+          // Intercept clipboard write
+          const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+          navigator.clipboard.writeText = async function(text) {
+            console.log('📋 Captured clipboard write:', text);
+            capturedText = text;
+            navigator.clipboard.writeText = originalWriteText; // Restore
+            resolve(text);
+            return originalWriteText(text);
+          };
+          
+          // Fallback timeout
+          setTimeout(() => resolve(null), 1000);
+        });
+
+        // Click the button
+        button.click();
+        console.log('🖱️ Clicked button');
+
+        // Wait for clipboard capture
+        const clipboardText = await capturePromise;
+        
+        if (clipboardText && this.isValidAddress(clipboardText)) {
+          console.log('✅ Successfully extracted full contract address by clicking copy button:', clipboardText);
+          return clipboardText;
+        }
+        
+        // Also try reading clipboard directly
+        try {
+          const readText = await navigator.clipboard.readText();
+          if (readText && this.isValidAddress(readText)) {
+            console.log('✅ Successfully extracted full contract address from clipboard:', readText);
+            return readText;
+          }
+        } catch (e) {
+          console.log('⚠️ Cannot read clipboard (permission denied)');
+        }
+        
+      } catch (error) {
+        console.log('⚠️ Error clicking copy button:', error);
+      }
+    }
+
+    // Fallback to attribute checking
     const copySelectors = [
       // Common copy button patterns
       '[data-clipboard-text]',
