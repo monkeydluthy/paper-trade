@@ -165,11 +165,11 @@ class AxiomSnipeInjector {
   }
 
   injectAllSnipeButtons() {
-    console.log('🎯 Injecting snipe buttons into Axiom...');
+    // console.log('🎯 Injecting snipe buttons into Axiom...');
 
     // Find all instant buy buttons (now grouped by row)
     const instantBuyButtons = this.findInstantBuyButtons();
-    console.log(`🔍 Found ${instantBuyButtons.length} instant buy buttons`);
+    // console.log(`🔍 Found ${instantBuyButtons.length} instant buy buttons`);
 
     // Debug: Log all buttons found
     if (instantBuyButtons.length === 0) {
@@ -205,9 +205,9 @@ class AxiomSnipeInjector {
       }
     });
 
-    console.log(
-      `✅ Injected snipe buttons into ${this.injectedButtons.size} token rows total`
-    );
+    // console.log(
+    //   `✅ Injected snipe buttons into ${this.injectedButtons.size} token rows total`
+    // );
   }
 
   findInstantBuyButtons() {
@@ -269,9 +269,9 @@ class AxiomSnipeInjector {
       finalButtons.push(sortedButtons[0]);
     });
 
-    console.log(
-      `🔍 Found ${potentialButtons.length} potential buttons, grouped into ${finalButtons.length} rows`
-    );
+      // console.log(
+      //   `🔍 Found ${potentialButtons.length} potential buttons, grouped into ${finalButtons.length} rows`
+      // );
     return finalButtons;
   }
 
@@ -305,7 +305,7 @@ class AxiomSnipeInjector {
       // Insert next to the instant buy button
       this.insertSnipeButton(instantBuyButton, snipeButton);
 
-      console.log(`Injected snipe button ${index + 1}`);
+      // console.log(`Injected snipe button ${index + 1}`);
     } catch (error) {
       console.error('Error injecting snipe button:', error);
     }
@@ -516,7 +516,7 @@ class AxiomSnipeInjector {
   }
 
   async extractTokenDataFromContext(button) {
-    console.log('🔍 Extracting token data from Axiom context...');
+    // console.log('🔍 Extracting token data from Axiom context...');
     let tokenData = {
       symbol: 'Unknown',
       contractAddress: null,
@@ -532,25 +532,25 @@ class AxiomSnipeInjector {
     // Go up to 10 levels to find the main token container
     for (let i = 0; i < 10 && currentElement; i++) {
       const text = currentElement.textContent || '';
-      console.log(
-        `🔍 Level ${i} container text:`,
-        text.substring(0, 200) + '...'
-      );
+      // console.log(
+      //   `🔍 Level ${i} container text:`,
+      //   text.substring(0, 200) + '...'
+      // );
 
       // Look for containers that have token data (symbol + MC + contract)
       if (text.includes('MC$') && text.length > 50) {
         bestContainer = currentElement;
-        console.log(
-          `✅ Found token container at level ${i}:`,
-          text.substring(0, 100) + '...'
-        );
+        // console.log(
+        //   `✅ Found token container at level ${i}:`,
+        //   text.substring(0, 100) + '...'
+        // );
         break;
       }
       currentElement = currentElement.parentElement;
     }
 
     if (bestContainer) {
-      console.log('📦 Using best container for extraction');
+      // console.log('📦 Using best container for extraction');
       tokenData.symbol =
         this.extractSymbolFromAxiom(bestContainer) || tokenData.symbol;
       tokenData.contractAddress =
