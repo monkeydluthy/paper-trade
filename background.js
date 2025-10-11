@@ -944,9 +944,9 @@ class BackgroundService {
           console.log(
             `🔍 Trying DexScreener API for ${symbol} with full address...`
           );
-          // Use CORS proxy for DexScreener API
+          // Use CORS proxy for DexScreener API - using the correct endpoint from docs
           const dexscreenerResponse = await fetch(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.dexscreener.com/latest/dex/tokens/solana/${contractAddress}`)}`,
             {
               method: 'GET',
               headers: {
@@ -963,40 +963,40 @@ class BackgroundService {
               const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
               console.log(`📊 DexScreener pair data for ${symbol}:`, pair);
               
-              // Try different price fields from DexScreener
-              if (pair.priceUsd) {
+              // DexScreener API provides these fields according to docs:
+              // - priceUsd: Direct USD price (preferred)
+              // - priceNative: Price in SOL
+              // - fdv: Fully Diluted Valuation (market cap)
+              // - marketCap: Market capitalization
+              
+              if (pair.priceUsd && pair.priceUsd !== '0') {
                 console.log(
-                  `✅ DexScreener token price for ${symbol}: $${pair.priceUsd}`
+                  `✅ DexScreener USD price for ${symbol}: $${pair.priceUsd}`
                 );
                 return parseFloat(pair.priceUsd);
               }
               
-              // Try priceNative (price in SOL)
-              if (pair.priceNative) {
+              // Try priceNative (price in SOL) - convert to USD
+              if (pair.priceNative && pair.priceNative !== '0') {
                 const solPrice = await this.getSOLPrice();
                 const priceUsd = parseFloat(pair.priceNative) * solPrice;
                 console.log(
-                  `✅ DexScreener SOL price for ${symbol}: ${pair.priceNative} SOL = $${priceUsd}`
+                  `✅ DexScreener SOL price for ${symbol}: ${pair.priceNative} SOL = $${priceUsd.toFixed(6)}`
                 );
                 return priceUsd;
               }
               
-              // Try to calculate price from liquidity and supply
-              if (pair.liquidity && pair.fdv) {
-                const priceFromLiquidity = parseFloat(pair.liquidity.usd) / 1000000; // Rough estimate
+              // If no direct price, try to estimate from market cap and supply
+              if (pair.fdv && pair.fdv > 0) {
+                // For memecoins, assume 1B supply for price estimation
+                const estimatedPrice = parseFloat(pair.fdv) / 1000000000;
                 console.log(
-                  `✅ DexScreener estimated price for ${symbol}: $${priceFromLiquidity} (from liquidity)`
+                  `⚠️ DexScreener estimated price for ${symbol}: $${estimatedPrice.toFixed(8)} (from FDV/1B supply)`
                 );
-                return priceFromLiquidity;
+                return estimatedPrice;
               }
               
-              // Last resort: market cap (but this is wrong for price tracking)
-              if (pair.fdv) {
-                console.log(
-                  `⚠️ DexScreener only has market cap for ${symbol}: $${pair.fdv} (using as fallback)`
-                );
-                return pair.fdv;
-              }
+              console.log(`❌ DexScreener no price data available for ${symbol}`);
             }
           }
         } catch (error) {
