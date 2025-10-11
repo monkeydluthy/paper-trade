@@ -1651,16 +1651,12 @@ class AxiomSnipeInjector {
       const pageText = document.body.textContent || '';
       console.log(`📄 Page text length: ${pageText.length} characters`);
 
-      // More specific patterns to avoid picking up other tokens' data
+      // Very specific patterns to avoid picking up other tokens' data
       const patterns = [
-        // Pattern: NoHouseNoHouseMC$315K (exact match)
+        // Pattern: NoHouseNoHouseMC$315K (exact match - most reliable)
         new RegExp(`${symbol}${symbol}MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
-        // Pattern: NoHouse MC$315K (with space)
+        // Pattern: NoHouse MC$315K (with space - less reliable but still good)
         new RegExp(`${symbol}\\s+MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
-        // Pattern: MC$315K NoHouse (reverse)
-        new RegExp(`MC\\$([0-9]+\\.[0-9]*[KMB]?)\\s+${symbol}`, 'i'),
-        // Pattern: NoHouse...MC$315K (with text in between)
-        new RegExp(`${symbol}[^>]{0,50}MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
       ];
 
       for (const pattern of patterns) {
@@ -1672,7 +1668,13 @@ class AxiomSnipeInjector {
           if (match[1].toUpperCase().includes('B')) price *= 1000000000;
 
           console.log(`✅ Found price for ${symbol} using pattern: ${match[0]} -> $${price}`);
-          return price;
+          
+          // Additional validation: price should be reasonable for memecoins (between $1K and $1B)
+          if (price >= 1000 && price <= 1000000000) {
+            return price;
+          } else {
+            console.log(`⚠️ Price ${price} seems unreasonable for ${symbol}, skipping`);
+          }
         }
       }
 
@@ -1694,11 +1696,17 @@ class AxiomSnipeInjector {
           if (mcMatch[1].toUpperCase().includes('B')) price *= 1000000000;
 
           console.log(`✅ Found context price for ${symbol}: $${price}`);
-          return price;
+          
+          // Additional validation for context price too
+          if (price >= 1000 && price <= 1000000000) {
+            return price;
+          } else {
+            console.log(`⚠️ Context price ${price} seems unreasonable for ${symbol}, skipping`);
+          }
         }
       }
 
-      console.log(`❌ No price found for ${symbol} on current page`);
+      console.log(`❌ No reliable price found for ${symbol} on current page`);
       return null;
     } catch (error) {
       console.error(`Error scraping price for ${symbol}:`, error);

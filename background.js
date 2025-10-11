@@ -1021,11 +1021,18 @@ class BackgroundService {
               `✅ Content script price for ${symbol}: $${response.price}`
             );
             
-            // Validate price is reasonable (not more than 10x different from original)
+            // Validate price is reasonable (not more than 3x different from original)
             if (originalPrice && response.price > 0) {
               const priceRatio = Math.max(response.price, originalPrice) / Math.min(response.price, originalPrice);
-              if (priceRatio > 10) {
+              if (priceRatio > 3) {
                 console.log(`⚠️ Price seems unreasonable for ${symbol}: original=$${originalPrice}, new=$${response.price} (ratio: ${priceRatio.toFixed(2)}x)`);
+                console.log(`🔄 Using original price instead: $${originalPrice}`);
+                return originalPrice;
+              }
+              
+              // Also validate absolute price ranges for memecoins
+              if (response.price < 1000 || response.price > 1000000000) {
+                console.log(`⚠️ Price ${response.price} outside reasonable range for ${symbol} (1K-1B)`);
                 console.log(`🔄 Using original price instead: $${originalPrice}`);
                 return originalPrice;
               }
