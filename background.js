@@ -854,6 +854,7 @@ class BackgroundService {
           }
         } catch (error) {
           console.log(`⚠️ PumpPortal API failed for ${symbol}:`, error.message);
+          console.log(`📋 Error details:`, error);
         }
       }
 
@@ -1070,6 +1071,13 @@ class BackgroundService {
       }
 
       console.log(`❌ No price found for ${symbol}`);
+      
+      // If we have an original price and all strategies failed, keep using it
+      if (originalPrice && originalPrice > 0) {
+        console.log(`🔄 All strategies failed, keeping last known price: $${originalPrice}`);
+        return originalPrice;
+      }
+      
       return null;
     } catch (error) {
       console.error(`Error fetching price for ${symbol}:`, error);
