@@ -163,6 +163,11 @@ class BackgroundService {
         try {
           console.log(`🔄 Updating price for ${symbol}...`);
           console.log(`📊 Holding data for ${symbol}:`, holding);
+          
+          // Debug: Check if this is the right token
+          if (holding.fullContractAddress && holding.fullContractAddress !== holding.contractAddress) {
+            console.log(`⚠️ Contract address mismatch for ${symbol}: full=${holding.fullContractAddress}, main=${holding.contractAddress}`);
+          }
 
           // Prefer full contract address, fall back to truncated
           const contractAddress =
@@ -958,7 +963,7 @@ class BackgroundService {
               const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
               console.log(`📊 DexScreener pair data for ${symbol}:`, pair);
               
-              // Try to get the actual token price first
+              // Try different price fields from DexScreener
               if (pair.priceUsd) {
                 console.log(
                   `✅ DexScreener token price for ${symbol}: $${pair.priceUsd}`
@@ -966,10 +971,29 @@ class BackgroundService {
                 return parseFloat(pair.priceUsd);
               }
               
-              // Fallback to market cap if no price available
+              // Try priceNative (price in SOL)
+              if (pair.priceNative) {
+                const solPrice = await this.getSOLPrice();
+                const priceUsd = parseFloat(pair.priceNative) * solPrice;
+                console.log(
+                  `✅ DexScreener SOL price for ${symbol}: ${pair.priceNative} SOL = $${priceUsd}`
+                );
+                return priceUsd;
+              }
+              
+              // Try to calculate price from liquidity and supply
+              if (pair.liquidity && pair.fdv) {
+                const priceFromLiquidity = parseFloat(pair.liquidity.usd) / 1000000; // Rough estimate
+                console.log(
+                  `✅ DexScreener estimated price for ${symbol}: $${priceFromLiquidity} (from liquidity)`
+                );
+                return priceFromLiquidity;
+              }
+              
+              // Last resort: market cap (but this is wrong for price tracking)
               if (pair.fdv) {
                 console.log(
-                  `✅ DexScreener market cap for ${symbol}: $${pair.fdv}`
+                  `⚠️ DexScreener only has market cap for ${symbol}: $${pair.fdv} (using as fallback)`
                 );
                 return pair.fdv;
               }

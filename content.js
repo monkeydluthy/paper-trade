@@ -936,6 +936,10 @@ class AxiomSnipeInjector {
       /([A-Z][a-zA-Z]+)\1\s*MC\$/i, // "NoHouseNoHouseMC$285K" - repeated name pattern
       /([A-Z][a-zA-Z]+)\s*MC\$/i, // "TokenNameMC$285K" - name followed by MC
       
+      // More specific patterns for Axiom
+      /([A-Z][a-zA-Z]+)\1MC\$/i, // "NoHouseNoHouseMC$285K" - no spaces
+      /([A-Z][a-zA-Z]+)MC\$/i, // "TokenNameMC$285K" - no spaces
+      
       // Specific Axiom patterns from the logs
       /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i, // "SOL Speed Of Light"
       /([A-Z][a-zA-Z]+)\s+Of\s+Light/i, // "SOL Of Light"
