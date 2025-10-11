@@ -189,7 +189,8 @@ class BackgroundService {
 
             const newPrice = await this.fetchTokenPrice(
               symbol,
-              contractAddress
+              contractAddress,
+              holding.lastPrice || holding.avgPrice
             );
             if (newPrice && newPrice > 0) {
               console.log(`📈 New price for ${symbol}: $${newPrice}`);
@@ -761,7 +762,7 @@ class BackgroundService {
     const intervalId = setInterval(async () => {
       try {
         console.log(`📡 Fetching price update for ${symbol}...`);
-        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+        const newPrice = await this.fetchTokenPrice(symbol, contractAddress, null);
         if (newPrice && newPrice > 0) {
           console.log(`📈 New price for ${symbol}: $${newPrice}`);
           await this.updateTokenPrice(symbol, newPrice);
@@ -788,7 +789,7 @@ class BackgroundService {
     setTimeout(async () => {
       try {
         console.log(`🚀 Immediate price fetch for ${symbol}...`);
-        const newPrice = await this.fetchTokenPrice(symbol, contractAddress);
+        const newPrice = await this.fetchTokenPrice(symbol, contractAddress, null);
         if (newPrice && newPrice > 0) {
           await this.updateTokenPrice(symbol, newPrice);
         }
@@ -798,7 +799,7 @@ class BackgroundService {
     }, 2000); // 2 seconds delay for immediate fetch
   }
 
-  async fetchTokenPrice(symbol, contractAddress) {
+  async fetchTokenPrice(symbol, contractAddress, originalPrice = null) {
     try {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
 
@@ -1019,6 +1020,17 @@ class BackgroundService {
             console.log(
               `✅ Content script price for ${symbol}: $${response.price}`
             );
+            
+            // Validate price is reasonable (not more than 10x different from original)
+            if (originalPrice && response.price > 0) {
+              const priceRatio = Math.max(response.price, originalPrice) / Math.min(response.price, originalPrice);
+              if (priceRatio > 10) {
+                console.log(`⚠️ Price seems unreasonable for ${symbol}: original=$${originalPrice}, new=$${response.price} (ratio: ${priceRatio.toFixed(2)}x)`);
+                console.log(`🔄 Using original price instead: $${originalPrice}`);
+                return originalPrice;
+              }
+            }
+            
             return response.price;
           }
         }

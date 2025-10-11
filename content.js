@@ -1651,42 +1651,47 @@ class AxiomSnipeInjector {
       const pageText = document.body.textContent || '';
       console.log(`📄 Page text length: ${pageText.length} characters`);
 
-      // Search for market cap patterns with the token symbol
+      // More specific patterns to avoid picking up other tokens' data
       const patterns = [
-        new RegExp(`${symbol}[^>]*MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
-        new RegExp(`MC\\$([0-9]+\\.[0-9]*[KMB]?)[^>]*${symbol}`, 'i'),
-        new RegExp(
-          `${symbol}[^>]*Market\\s*Cap[^>]*\\$([0-9]+\\.[0-9]*[KMB]?)`,
-          'i'
-        ),
+        // Pattern: NoHouseNoHouseMC$315K (exact match)
+        new RegExp(`${symbol}${symbol}MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
+        // Pattern: NoHouse MC$315K (with space)
+        new RegExp(`${symbol}\\s+MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
+        // Pattern: MC$315K NoHouse (reverse)
+        new RegExp(`MC\\$([0-9]+\\.[0-9]*[KMB]?)\\s+${symbol}`, 'i'),
+        // Pattern: NoHouse...MC$315K (with text in between)
+        new RegExp(`${symbol}[^>]{0,50}MC\\$([0-9]+\\.[0-9]*[KMB]?)`, 'i'),
       ];
 
       for (const pattern of patterns) {
         const match = pageText.match(pattern);
         if (match) {
           let price = parseFloat(match[1]);
-          if (match[1].includes('K')) price *= 1000;
-          if (match[1].includes('M')) price *= 1000000;
-          if (match[1].includes('B')) price *= 1000000000;
+          if (match[1].toUpperCase().includes('K')) price *= 1000;
+          if (match[1].toUpperCase().includes('M')) price *= 1000000;
+          if (match[1].toUpperCase().includes('B')) price *= 1000000000;
 
-          console.log(`✅ Found price for ${symbol}: $${price}`);
+          console.log(`✅ Found price for ${symbol} using pattern: ${match[0]} -> $${price}`);
           return price;
         }
       }
 
-      // If no specific pattern found, look for any market cap near the symbol
+      // If no specific pattern found, look for any market cap near the symbol with stricter context
       const symbolIndex = pageText.indexOf(symbol);
       if (symbolIndex !== -1) {
+        // Use smaller context window to avoid picking up other tokens
         const context = pageText.substring(
-          Math.max(0, symbolIndex - 100),
-          symbolIndex + 200
+          Math.max(0, symbolIndex - 50),
+          symbolIndex + 100
         );
+        console.log(`🔍 Context around ${symbol}:`, context);
+        
         const mcMatch = context.match(/MC\s*\$([0-9]+\.?[0-9]*[KMB]?)/i);
         if (mcMatch) {
           let price = parseFloat(mcMatch[1]);
-          if (mcMatch[1].includes('K')) price *= 1000;
-          if (mcMatch[1].includes('M')) price *= 1000000;
-          if (mcMatch[1].includes('B')) price *= 1000000000;
+          if (mcMatch[1].toUpperCase().includes('K')) price *= 1000;
+          if (mcMatch[1].toUpperCase().includes('M')) price *= 1000000;
+          if (mcMatch[1].toUpperCase().includes('B')) price *= 1000000000;
 
           console.log(`✅ Found context price for ${symbol}: $${price}`);
           return price;
