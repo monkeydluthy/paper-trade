@@ -12,21 +12,23 @@ class AxiomSnipeInjector {
 
   setupGlobalClipboardInterceptor() {
     // Intercept clipboard writes globally to capture contract addresses
-    const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+    const originalWriteText = navigator.clipboard.writeText.bind(
+      navigator.clipboard
+    );
     const self = this;
-    
-    navigator.clipboard.writeText = async function(text) {
+
+    navigator.clipboard.writeText = async function (text) {
       console.log('📋 Global clipboard interceptor - captured write:', text);
-      
+
       // Check if it's a valid contract address
       if (text && text.length >= 32 && /^[A-Za-z0-9]+$/.test(text)) {
         console.log('✅ Detected contract address in clipboard:', text);
         self.lastCopiedAddress = text;
       }
-      
+
       return originalWriteText(text);
     };
-    
+
     console.log('🔍 Global clipboard interceptor installed');
   }
 
@@ -473,7 +475,9 @@ class AxiomSnipeInjector {
       }
 
       // Extract token data from the surrounding context
-      const tokenData = await this.extractTokenDataFromContext(instantBuyButton);
+      const tokenData = await this.extractTokenDataFromContext(
+        instantBuyButton
+      );
       tokenData.amount = amount;
 
       // Send message to background script
@@ -550,7 +554,7 @@ class AxiomSnipeInjector {
       tokenData.symbol =
         this.extractSymbolFromAxiom(bestContainer) || tokenData.symbol;
       tokenData.contractAddress =
-        await this.extractContractFromAxiom(bestContainer) ||
+        (await this.extractContractFromAxiom(bestContainer)) ||
         tokenData.contractAddress;
       tokenData.price =
         this.extractPriceFromAxiom(bestContainer) || tokenData.price;
@@ -567,11 +571,15 @@ class AxiomSnipeInjector {
       console.log('🔍 Current tokenData before parent search:', tokenData);
       currentElement = button.parentElement;
       for (let i = 0; i < 5 && currentElement; i++) {
-        console.log(`🔍 Checking parent element ${i}:`, currentElement.tagName, currentElement.className);
+        console.log(
+          `🔍 Checking parent element ${i}:`,
+          currentElement.tagName,
+          currentElement.className
+        );
         const symbol = this.extractSymbolFromAxiom(currentElement);
         const contract = await this.extractContractFromAxiom(currentElement);
         const price = this.extractPriceFromAxiom(currentElement);
-        
+
         console.log(`🔍 Parent ${i} results:`, { symbol, contract, price });
 
         if (
@@ -928,7 +936,7 @@ class AxiomSnipeInjector {
       /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i, // "SOL Speed Of Light"
       /([A-Z][a-zA-Z]+)\s+Of\s+Light/i, // "SOL Of Light"
       /([A-Z][a-zA-Z]+)\s+Inconvenience/i, // "BNB Inconvenience"
-      
+
       // PumpFun patterns
       /([A-Z][a-zA-Z]+)\s+PumpFun/i, // "PFF PumpFunFloki"
       /([A-Z][a-zA-Z]+)\s+Pump/i, // "PFF Pump"
@@ -1070,30 +1078,39 @@ class AxiomSnipeInjector {
     // NEW METHOD: Try to click copy buttons and capture clipboard content
     const allButtons = Array.from(element.querySelectorAll('button'));
     console.log(`🔍 Total buttons in element: ${allButtons.length}`);
-    
-    const copyButtonsWithIcons = allButtons.filter(btn => {
-      // Find buttons that have SVG icons (likely copy buttons)
+
+    const copyButtonsWithIcons = allButtons.filter((btn) => {
+      // Find buttons that have SVG icons OR contain contract-like text (likely copy buttons)
       const hasSvg = btn.querySelector('svg');
       const isEmpty = btn.textContent?.trim() === '';
       const hasIconClass = btn.className.toLowerCase().includes('icon');
-      
+      const hasCopyClass = btn.className.toLowerCase().includes('copy');
+      const hasContractText = btn.textContent?.trim().match(/^[A-Za-z0-9]{4}\.\.\.[A-Za-z0-9]{4}$/); // Pattern like "FYnb...pump"
+
       console.log(`🔍 Button check:`, {
         hasSvg,
         isEmpty,
         hasIconClass,
+        hasCopyClass,
+        hasContractText,
         text: btn.textContent?.substring(0, 20),
-        className: btn.className
+        className: btn.className,
       });
-      
-      return (hasSvg && isEmpty) || hasIconClass;
+
+      return (hasSvg && isEmpty) || hasIconClass || hasCopyClass || hasContractText;
     });
 
-    console.log(`🔍 Found ${copyButtonsWithIcons.length} icon-only buttons (potential copy buttons)`);
+    console.log(
+      `🔍 Found ${copyButtonsWithIcons.length} icon-only buttons (potential copy buttons)`
+    );
 
     for (const button of copyButtonsWithIcons) {
       try {
-        console.log('🔍 Attempting to click copy button:', button.outerHTML.substring(0, 150));
-        
+        console.log(
+          '🔍 Attempting to click copy button:',
+          button.outerHTML.substring(0, 150)
+        );
+
         // Clear the last copied address before clicking
         this.lastCopiedAddress = null;
 
@@ -1102,29 +1119,37 @@ class AxiomSnipeInjector {
         console.log('🖱️ Clicked button, waiting for clipboard...');
 
         // Wait a bit for the clipboard to be written
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
         // Check if our global interceptor caught an address
-        if (this.lastCopiedAddress && this.isValidAddress(this.lastCopiedAddress)) {
-          console.log('✅ Successfully extracted full contract address via global interceptor:', this.lastCopiedAddress);
+        if (
+          this.lastCopiedAddress &&
+          this.isValidAddress(this.lastCopiedAddress)
+        ) {
+          console.log(
+            '✅ Successfully extracted full contract address via global interceptor:',
+            this.lastCopiedAddress
+          );
           return this.lastCopiedAddress;
         }
-        
+
         // Also try reading clipboard directly (with focus)
         try {
           // Ensure document is focused before reading clipboard
           window.focus();
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay for focus
-          
+          await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay for focus
+
           const readText = await navigator.clipboard.readText();
           if (readText && this.isValidAddress(readText)) {
-            console.log('✅ Successfully extracted full contract address from clipboard:', readText);
+            console.log(
+              '✅ Successfully extracted full contract address from clipboard:',
+              readText
+            );
             return readText;
           }
         } catch (e) {
           console.log('⚠️ Cannot read clipboard:', e.message);
         }
-        
       } catch (error) {
         console.log('⚠️ Error clicking copy button:', error);
       }
@@ -1134,7 +1159,7 @@ class AxiomSnipeInjector {
     const copySelectors = [
       // Common copy button patterns
       '[data-clipboard-text]',
-      '[data-copy]', 
+      '[data-copy]',
       '[data-address]',
       '[data-contract]',
       '[data-value]',
@@ -1158,29 +1183,38 @@ class AxiomSnipeInjector {
       '[class*="contract"] button',
       'button svg',
       'button[data-testid*="copy"]',
-      'button[data-testid*="address"]'
+      'button[data-testid*="address"]',
     ];
-    
+
     const copyButtons = element.querySelectorAll(copySelectors.join(', '));
     console.log(`🔍 Found ${copyButtons.length} potential copy buttons`);
-    
+
     for (const button of copyButtons) {
-      console.log('🔍 Checking copy button:', button.tagName, button.className, button.outerHTML.substring(0, 200));
-      
+      console.log(
+        '🔍 Checking copy button:',
+        button.tagName,
+        button.className,
+        button.outerHTML.substring(0, 200)
+      );
+
       // Check various attributes for the full address
-      const fullAddress = button.getAttribute('data-clipboard-text') || 
-                         button.getAttribute('data-copy') || 
-                         button.getAttribute('data-address') || 
-                         button.getAttribute('data-contract') || 
-                         button.getAttribute('data-value') ||
-                         button.getAttribute('title') ||
-                         button.getAttribute('aria-label') ||
-                         button.textContent?.trim();
-      
+      const fullAddress =
+        button.getAttribute('data-clipboard-text') ||
+        button.getAttribute('data-copy') ||
+        button.getAttribute('data-address') ||
+        button.getAttribute('data-contract') ||
+        button.getAttribute('data-value') ||
+        button.getAttribute('title') ||
+        button.getAttribute('aria-label') ||
+        button.textContent?.trim();
+
       console.log('🔍 Copy button address candidate:', fullAddress);
-      
+
       if (fullAddress && this.isValidAddress(fullAddress)) {
-        console.log('✅ Found full contract address from copy button:', fullAddress);
+        console.log(
+          '✅ Found full contract address from copy button:',
+          fullAddress
+        );
         return fullAddress;
       }
     }
@@ -1194,7 +1228,10 @@ class AxiomSnipeInjector {
         // Look for addresses in onclick handlers
         const addressMatch = onclick.match(/([A-Za-z0-9]{32,44})/);
         if (addressMatch && this.isValidAddress(addressMatch[1])) {
-          console.log('✅ Found full contract address from onclick:', addressMatch[1]);
+          console.log(
+            '✅ Found full contract address from onclick:',
+            addressMatch[1]
+          );
           return addressMatch[1];
         }
       }
@@ -1253,7 +1290,7 @@ class AxiomSnipeInjector {
       // Axiom-specific patterns
       '[class*="token"]',
       '[class*="pair"]',
-      '[class*="symbol"]'
+      '[class*="symbol"]',
     ];
 
     for (const selector of contractSelectors) {
@@ -1285,15 +1322,17 @@ class AxiomSnipeInjector {
     // NEW: Look for full addresses in the entire page DOM by searching for specific patterns
     // This is more aggressive but should find full addresses that are displayed elsewhere
     console.log('🔍 Searching entire page for full contract addresses...');
-    
+
     // Look for any element that contains a full contract address
     const allElements = document.querySelectorAll('*');
     const fullAddresses = new Set();
-    
+
     for (const el of allElements) {
       const text = el.textContent || '';
-      const attributes = Array.from(el.attributes || []).map(attr => attr.value);
-      
+      const attributes = Array.from(el.attributes || []).map(
+        (attr) => attr.value
+      );
+
       // Check text content
       const textMatches = text.match(/\b([A-Za-z0-9]{32,44})\b/g);
       if (textMatches) {
@@ -1303,7 +1342,7 @@ class AxiomSnipeInjector {
           }
         }
       }
-      
+
       // Check attributes
       for (const attrValue of attributes) {
         const attrMatches = attrValue.match(/\b([A-Za-z0-9]{32,44})\b/g);
@@ -1316,19 +1355,33 @@ class AxiomSnipeInjector {
         }
       }
     }
-    
+
     console.log('🔍 Found full addresses on page:', Array.from(fullAddresses));
-    
+
     // If we found full addresses, try to match them with our truncated one
     if (fullAddresses.size > 0) {
       const truncatedAddress = this.extractTruncatedAddress(element);
       if (truncatedAddress) {
-        console.log('🔍 Looking for match with truncated address:', truncatedAddress);
+        console.log(
+          '🔍 Looking for match with truncated address:',
+          truncatedAddress
+        );
         for (const fullAddress of fullAddresses) {
-          if (fullAddress.startsWith(truncatedAddress.substring(0, 4)) || 
-              fullAddress.endsWith(truncatedAddress.substring(truncatedAddress.length - 4))) {
-            console.log('✅ Matched truncated to full address:', truncatedAddress, '->', fullAddress);
-            return fullAddress;
+          // Extract the start and end parts from truncated address like "FYnb...pump"
+          const truncatedParts = truncatedAddress.match(/^([A-Za-z0-9]{4})\.\.\.([A-Za-z0-9]{4})$/);
+          if (truncatedParts) {
+            const startPart = truncatedParts[1];
+            const endPart = truncatedParts[2];
+            
+            if (fullAddress.startsWith(startPart) && fullAddress.endsWith(endPart)) {
+              console.log(
+                '✅ Matched truncated to full address:',
+                truncatedAddress,
+                '->',
+                fullAddress
+              );
+              return fullAddress;
+            }
           }
         }
       }
@@ -1504,14 +1557,14 @@ class AxiomSnipeInjector {
       /([A-Za-z0-9]{4})\.\.\.([A-Za-z0-9]{4})/, // Pattern like "Ck5D...BAGS"
       /([A-Za-z0-9]{4})...([A-Za-z0-9]{4})/, // Pattern like "Ck5D...BAGS" (no dots)
     ];
-    
+
     for (const pattern of truncatedPatterns) {
       const match = text.match(pattern);
       if (match) {
         return match[0]; // Return the full truncated string
       }
     }
-    
+
     return null;
   }
 
