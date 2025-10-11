@@ -932,6 +932,10 @@ class AxiomSnipeInjector {
 
     // Look for token name patterns first (prioritize these)
     const tokenNamePatterns = [
+      // Specific patterns from current logs
+      /([A-Z][a-zA-Z]+)\1\s*MC\$/i, // "NoHouseNoHouseMC$285K" - repeated name pattern
+      /([A-Z][a-zA-Z]+)\s*MC\$/i, // "TokenNameMC$285K" - name followed by MC
+      
       // Specific Axiom patterns from the logs
       /([A-Z][a-zA-Z]+)\s+Speed\s+Of\s+Light/i, // "SOL Speed Of Light"
       /([A-Z][a-zA-Z]+)\s+Of\s+Light/i, // "SOL Of Light"

@@ -953,8 +953,20 @@ class BackgroundService {
 
           if (dexscreenerResponse.ok) {
             const dexscreenerData = await dexscreenerResponse.json();
+            console.log(`📊 DexScreener full response for ${symbol}:`, dexscreenerData);
             if (dexscreenerData.pairs && dexscreenerData.pairs.length > 0) {
               const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
+              console.log(`📊 DexScreener pair data for ${symbol}:`, pair);
+              
+              // Try to get the actual token price first
+              if (pair.priceUsd) {
+                console.log(
+                  `✅ DexScreener token price for ${symbol}: $${pair.priceUsd}`
+                );
+                return parseFloat(pair.priceUsd);
+              }
+              
+              // Fallback to market cap if no price available
               if (pair.fdv) {
                 console.log(
                   `✅ DexScreener market cap for ${symbol}: $${pair.fdv}`
