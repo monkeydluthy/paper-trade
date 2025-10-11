@@ -813,14 +813,13 @@ class BackgroundService {
           console.log(
             `🔍 Trying PumpPortal API for ${symbol} with full address...`
           );
-          // Use CORS proxy to avoid CORS issues
+          // Try direct API call first (Chrome extension should allow it)
           const pumpportalResponse = await fetch(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.pumpportal.fun/coin/${contractAddress}`)}`,
+            `https://api.pumpportal.fun/coin/${contractAddress}`,
             {
               method: 'GET',
               headers: {
                 Accept: 'application/json',
-                'User-Agent': 'CryptoPaperTrader/1.0',
               },
             }
           );
@@ -868,9 +867,9 @@ class BackgroundService {
           console.log(
             `🔍 Trying Jupiter API for ${symbol} with full address...`
           );
-          // Use CORS proxy for Jupiter API
+          // Try direct API call
           const jupiterResponse = await fetch(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://price.jup.ag/v4/price?ids=${contractAddress}`)}`,
+            `https://price.jup.ag/v4/price?ids=${contractAddress}`,
             {
               method: 'GET',
               headers: {
@@ -906,14 +905,13 @@ class BackgroundService {
           console.log(
             `🔍 Trying Pump.fun API directly for ${symbol} with full address...`
           );
-          // Use CORS proxy for Pump.fun API
+          // Try direct API call
           const pumpfunResponse = await fetch(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://frontend-api.pump.fun/coins/${contractAddress}`)}`,
+            `https://frontend-api.pump.fun/coins/${contractAddress}`,
             {
               method: 'GET',
               headers: {
                 Accept: 'application/json',
-                'User-Agent': 'CryptoPaperTrader/1.0',
               },
             }
           );
@@ -945,14 +943,13 @@ class BackgroundService {
           console.log(
             `🔍 Trying DexScreener API for ${symbol} with full address...`
           );
-          // Use CORS proxy for DexScreener API - using the correct endpoint from docs
+          // Try direct API call - DexScreener endpoint from official docs
           const dexscreenerResponse = await fetch(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.dexscreener.com/latest/dex/tokens/solana/${contractAddress}`)}`,
+            `https://api.dexscreener.com/latest/dex/tokens/solana/${contractAddress}`,
             {
               method: 'GET',
               headers: {
                 Accept: 'application/json',
-                'User-Agent': 'CryptoPaperTrader/1.0',
               },
             }
           );
