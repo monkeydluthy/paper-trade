@@ -10,7 +10,9 @@
     "https://api.pumpportal.fun/*",
     "https://price.jup.ag/*",
     "https://frontend-api.pump.fun/*",
-    "https://api.coingecko.com/*"
+    "https://api.coingecko.com/*",
+    "https://api.dexscreener.com/*",
+    "https://api.allorigins.win/*"
   ],
   "action": {
     "default_popup": "popup.html",

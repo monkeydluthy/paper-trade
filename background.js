@@ -807,8 +807,9 @@ class BackgroundService {
           console.log(
             `🔍 Trying PumpPortal API for ${symbol} with full address...`
           );
+          // Use CORS proxy to avoid CORS issues
           const pumpportalResponse = await fetch(
-            `https://api.pumpportal.fun/coin/${contractAddress}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.pumpportal.fun/coin/${contractAddress}`)}`,
             {
               method: 'GET',
               headers: {
@@ -861,8 +862,9 @@ class BackgroundService {
           console.log(
             `🔍 Trying Jupiter API for ${symbol} with full address...`
           );
+          // Use CORS proxy for Jupiter API
           const jupiterResponse = await fetch(
-            `https://price.jup.ag/v4/price?ids=${contractAddress}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://price.jup.ag/v4/price?ids=${contractAddress}`)}`,
             {
               method: 'GET',
               headers: {
@@ -898,8 +900,9 @@ class BackgroundService {
           console.log(
             `🔍 Trying Pump.fun API directly for ${symbol} with full address...`
           );
+          // Use CORS proxy for Pump.fun API
           const pumpfunResponse = await fetch(
-            `https://frontend-api.pump.fun/coins/${contractAddress}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://frontend-api.pump.fun/coins/${contractAddress}`)}`,
             {
               method: 'GET',
               headers: {
@@ -926,7 +929,46 @@ class BackgroundService {
         }
       }
 
-      // Strategy 4: Ask content script to scrape from current Axiom page (works with truncated addresses)
+      // Strategy 4: Try DexScreener API (very reliable for Solana tokens)
+      if (
+        contractAddress &&
+        !contractAddress.includes('...') &&
+        this.isValidContractAddress(contractAddress)
+      ) {
+        try {
+          console.log(
+            `🔍 Trying DexScreener API for ${symbol} with full address...`
+          );
+          // Use CORS proxy for DexScreener API
+          const dexscreenerResponse = await fetch(
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`)}`,
+            {
+              method: 'GET',
+              headers: {
+                Accept: 'application/json',
+                'User-Agent': 'CryptoPaperTrader/1.0',
+              },
+            }
+          );
+
+          if (dexscreenerResponse.ok) {
+            const dexscreenerData = await dexscreenerResponse.json();
+            if (dexscreenerData.pairs && dexscreenerData.pairs.length > 0) {
+              const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
+              if (pair.fdv) {
+                console.log(
+                  `✅ DexScreener market cap for ${symbol}: $${pair.fdv}`
+                );
+                return pair.fdv;
+              }
+            }
+          }
+        } catch (error) {
+          console.log(`⚠️ DexScreener API failed for ${symbol}:`, error.message);
+        }
+      }
+
+      // Strategy 5: Ask content script to scrape from current Axiom page (works with truncated addresses)
       try {
         console.log(
           `🔍 Asking content script to scrape price for ${symbol} (works with truncated addresses)...`
