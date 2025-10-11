@@ -867,6 +867,33 @@ class BackgroundService {
     try {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
 
+      // Strategy 0: Try local proxy server first (bypasses CORS completely)
+      if (
+        contractAddress &&
+        !contractAddress.includes('...') &&
+        this.isValidContractAddress(contractAddress)
+      ) {
+        try {
+          console.log(`🔍 Trying local proxy server for ${symbol}...`);
+          const proxyUrl = `http://localhost:3000?address=${contractAddress}`;
+          const proxyResponse = await fetch(proxyUrl);
+          
+          if (proxyResponse.ok) {
+            const proxyData = await proxyResponse.json();
+            if (proxyData.success && proxyData.price) {
+              console.log(
+                `✅ Local proxy returned price for ${symbol}: $${proxyData.price} (source: ${proxyData.source})`
+              );
+              return proxyData.price;
+            }
+          } else {
+            console.log(`⚠️ Local proxy returned status ${proxyResponse.status}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Local proxy not available (${error.message}) - trying other methods...`);
+        }
+      }
+
       // Strategy 1: Try PumpPortal API (best for Pump.fun tokens, requires full address)
       if (
         contractAddress &&

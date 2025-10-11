@@ -1,0 +1,14 @@
+{
+  "name": "crypto-paper-trader-proxy",
+  "version": "1.0.0",
+  "description": "Local proxy server to bypass CORS for Crypto Paper Trader extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["proxy", "cors", "chrome-extension"],
+  "author": "",
+  "license": "MIT"
+}
+
