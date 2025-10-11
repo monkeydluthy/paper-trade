@@ -799,6 +799,41 @@ class BackgroundService {
     }, 2000); // 2 seconds delay for immediate fetch
   }
 
+  async fetchWithCORS(url) {
+    try {
+      // First try direct fetch
+      const directResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      if (directResponse.ok) {
+        return await directResponse.json();
+      }
+    } catch (directError) {
+      console.log(`Direct fetch failed, trying CORS proxy...`);
+    }
+
+    // Fallback to CORS proxy using allorigins.win with proper JSON parsing
+    try {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const proxyResponse = await fetch(proxyUrl);
+      
+      if (proxyResponse.ok) {
+        const proxyData = await proxyResponse.json();
+        // allorigins.win returns {contents: "...", status: {...}}
+        if (proxyData.contents) {
+          return JSON.parse(proxyData.contents);
+        }
+      }
+    } catch (proxyError) {
+      console.log(`CORS proxy failed:`, proxyError.message);
+    }
+
+    throw new Error('Both direct fetch and CORS proxy failed');
+  }
+
   async fetchTokenPrice(symbol, contractAddress, originalPrice = null) {
     try {
       console.log(`📡 Fetching price for ${symbol} (${contractAddress})`);
@@ -813,48 +848,34 @@ class BackgroundService {
           console.log(
             `🔍 Trying PumpPortal API for ${symbol} with full address...`
           );
-          // Try direct API call first (Chrome extension should allow it)
-          const pumpportalResponse = await fetch(
-            `https://api.pumpportal.fun/coin/${contractAddress}`,
-            {
-              method: 'GET',
-              headers: {
-                Accept: 'application/json',
-              },
-            }
+          
+          const pumpportalData = await this.fetchWithCORS(
+            `https://api.pumpportal.fun/coin/${contractAddress}`
+          );
+          
+          console.log(
+            `📊 PumpPortal response for ${symbol}:`,
+            pumpportalData
           );
 
-          if (pumpportalResponse.ok) {
-            const pumpportalData = await pumpportalResponse.json();
+          // PumpPortal returns market cap directly
+          if (pumpportalData.usd_market_cap) {
             console.log(
-              `📊 PumpPortal response for ${symbol}:`,
-              pumpportalData
+              `✅ PumpPortal market cap for ${symbol}: $${pumpportalData.usd_market_cap}`
             );
+            return pumpportalData.usd_market_cap;
+          }
 
-            // PumpPortal returns market cap directly
-            if (pumpportalData.usd_market_cap) {
-              console.log(
-                `✅ PumpPortal market cap for ${symbol}: $${pumpportalData.usd_market_cap}`
-              );
-              return pumpportalData.usd_market_cap;
-            }
-
-            // If no market cap, try to calculate from price and supply
-            if (pumpportalData.price && pumpportalData.supply) {
-              const marketCap = pumpportalData.price * pumpportalData.supply;
-              console.log(
-                `✅ PumpPortal calculated market cap for ${symbol}: $${marketCap}`
-              );
-              return marketCap;
-            }
-          } else {
+          // If no market cap, try to calculate from price and supply
+          if (pumpportalData.price && pumpportalData.supply) {
+            const marketCap = pumpportalData.price * pumpportalData.supply;
             console.log(
-              `⚠️ PumpPortal API returned ${pumpportalResponse.status} for ${symbol}`
+              `✅ PumpPortal calculated market cap for ${symbol}: $${marketCap}`
             );
+            return marketCap;
           }
         } catch (error) {
           console.log(`⚠️ PumpPortal API failed for ${symbol}:`, error.message);
-          console.log(`📋 Error details:`, error);
         }
       }
 
@@ -868,28 +889,19 @@ class BackgroundService {
           console.log(
             `🔍 Trying Jupiter API for ${symbol} with full address...`
           );
-          // Try direct API call
-          const jupiterResponse = await fetch(
-            `https://price.jup.ag/v4/price?ids=${contractAddress}`,
-            {
-              method: 'GET',
-              headers: {
-                Accept: 'application/json',
-              },
-            }
+          
+          const jupiterData = await this.fetchWithCORS(
+            `https://price.jup.ag/v4/price?ids=${contractAddress}`
           );
-
-          if (jupiterResponse.ok) {
-            const jupiterData = await jupiterResponse.json();
-            if (jupiterData.data && jupiterData.data[contractAddress]) {
-              const price = jupiterData.data[contractAddress].price;
-              const solPrice = await this.getSOLPrice();
-              const marketCap = price * solPrice * 1000000; // Assuming 1M supply
-              console.log(
-                `✅ Jupiter price for ${symbol}: $${marketCap.toFixed(0)}`
-              );
-              return marketCap;
-            }
+          
+          if (jupiterData.data && jupiterData.data[contractAddress]) {
+            const price = jupiterData.data[contractAddress].price;
+            const solPrice = await this.getSOLPrice();
+            const marketCap = price * solPrice * 1000000; // Assuming 1M supply
+            console.log(
+              `✅ Jupiter price for ${symbol}: $${marketCap.toFixed(0)}`
+            );
+            return marketCap;
           }
         } catch (error) {
           console.log(`⚠️ Jupiter API failed for ${symbol}:`, error.message);
@@ -906,25 +918,16 @@ class BackgroundService {
           console.log(
             `🔍 Trying Pump.fun API directly for ${symbol} with full address...`
           );
-          // Try direct API call
-          const pumpfunResponse = await fetch(
-            `https://frontend-api.pump.fun/coins/${contractAddress}`,
-            {
-              method: 'GET',
-              headers: {
-                Accept: 'application/json',
-              },
-            }
+          
+          const pumpfunData = await this.fetchWithCORS(
+            `https://frontend-api.pump.fun/coins/${contractAddress}`
           );
-
-          if (pumpfunResponse.ok) {
-            const pumpfunData = await pumpfunResponse.json();
-            if (pumpfunData.usd_market_cap) {
-              console.log(
-                `✅ Pump.fun direct price for ${symbol}: $${pumpfunData.usd_market_cap}`
-              );
-              return pumpfunData.usd_market_cap;
-            }
+          
+          if (pumpfunData.usd_market_cap) {
+            console.log(
+              `✅ Pump.fun direct price for ${symbol}: $${pumpfunData.usd_market_cap}`
+            );
+            return pumpfunData.usd_market_cap;
           }
         } catch (error) {
           console.log(
@@ -944,59 +947,33 @@ class BackgroundService {
           console.log(
             `🔍 Trying DexScreener API for ${symbol} with full address...`
           );
-          // Try direct API call - DexScreener endpoint from official docs
-          const dexscreenerResponse = await fetch(
-            `https://api.dexscreener.com/latest/dex/tokens/solana/${contractAddress}`,
-            {
-              method: 'GET',
-              headers: {
-                Accept: 'application/json',
-              },
-            }
+          
+          const dexscreenerData = await this.fetchWithCORS(
+            `https://api.dexscreener.com/latest/dex/tokens/solana/${contractAddress}`
           );
-
-          if (dexscreenerResponse.ok) {
-            const dexscreenerData = await dexscreenerResponse.json();
-            console.log(`📊 DexScreener full response for ${symbol}:`, dexscreenerData);
-            if (dexscreenerData.pairs && dexscreenerData.pairs.length > 0) {
-              const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
-              console.log(`📊 DexScreener pair data for ${symbol}:`, pair);
-              
-              // DexScreener API provides these fields according to docs:
-              // - priceUsd: Direct USD price (preferred)
-              // - priceNative: Price in SOL
-              // - fdv: Fully Diluted Valuation (market cap)
-              // - marketCap: Market capitalization
-              
-              if (pair.priceUsd && pair.priceUsd !== '0') {
-                console.log(
-                  `✅ DexScreener USD price for ${symbol}: $${pair.priceUsd}`
-                );
-                return parseFloat(pair.priceUsd);
-              }
-              
-              // Try priceNative (price in SOL) - convert to USD
-              if (pair.priceNative && pair.priceNative !== '0') {
-                const solPrice = await this.getSOLPrice();
-                const priceUsd = parseFloat(pair.priceNative) * solPrice;
-                console.log(
-                  `✅ DexScreener SOL price for ${symbol}: ${pair.priceNative} SOL = $${priceUsd.toFixed(6)}`
-                );
-                return priceUsd;
-              }
-              
-              // If no direct price, try to estimate from market cap and supply
-              if (pair.fdv && pair.fdv > 0) {
-                // For memecoins, assume 1B supply for price estimation
-                const estimatedPrice = parseFloat(pair.fdv) / 1000000000;
-                console.log(
-                  `⚠️ DexScreener estimated price for ${symbol}: $${estimatedPrice.toFixed(8)} (from FDV/1B supply)`
-                );
-                return estimatedPrice;
-              }
-              
-              console.log(`❌ DexScreener no price data available for ${symbol}`);
+          
+          console.log(`📊 DexScreener full response for ${symbol}:`, dexscreenerData);
+          if (dexscreenerData.pairs && dexscreenerData.pairs.length > 0) {
+            const pair = dexscreenerData.pairs[0]; // Get the first (usually most liquid) pair
+            console.log(`📊 DexScreener pair data for ${symbol}:`, pair);
+            
+            // DexScreener returns market cap (fdv) - that's what we want!
+            if (pair.fdv && pair.fdv > 0) {
+              console.log(
+                `✅ DexScreener market cap for ${symbol}: $${pair.fdv}`
+              );
+              return parseFloat(pair.fdv);
             }
+            
+            // Fallback to marketCap field if fdv not available
+            if (pair.marketCap && pair.marketCap > 0) {
+              console.log(
+                `✅ DexScreener market cap (alt) for ${symbol}: $${pair.marketCap}`
+              );
+              return parseFloat(pair.marketCap);
+            }
+            
+            console.log(`❌ DexScreener no market cap data available for ${symbol}`);
           }
         } catch (error) {
           console.log(`⚠️ DexScreener API failed for ${symbol}:`, error.message);
