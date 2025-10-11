@@ -800,38 +800,67 @@ class BackgroundService {
   }
 
   async fetchWithCORS(url) {
+    // Strategy 1: Direct fetch with proper headers (should work in Manifest V3 service worker)
     try {
-      // First try direct fetch
+      console.log(`🌐 Trying direct fetch: ${url}`);
       const directResponse = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      
+      if (directResponse.ok) {
+        const data = await directResponse.json();
+        console.log(`✅ Direct fetch successful`);
+        return data;
+      }
+      
+      console.log(`⚠️ Direct fetch failed with status: ${directResponse.status}`);
+    } catch (directError) {
+      console.log(`❌ Direct fetch error:`, directError.message);
+    }
+
+    // Strategy 2: Try cors-anywhere.herokuapp.com (popular CORS proxy)
+    try {
+      console.log(`🌐 Trying cors-anywhere proxy...`);
+      const corsAnywhereUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+      const corsResponse = await fetch(corsAnywhereUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
         },
       });
-      if (directResponse.ok) {
-        return await directResponse.json();
+      
+      if (corsResponse.ok) {
+        const data = await corsResponse.json();
+        console.log(`✅ CORS-anywhere successful`);
+        return data;
       }
-    } catch (directError) {
-      console.log(`Direct fetch failed, trying CORS proxy...`);
+    } catch (corsError) {
+      console.log(`❌ CORS-anywhere error:`, corsError.message);
     }
 
-    // Fallback to CORS proxy using allorigins.win with proper JSON parsing
+    // Strategy 3: Try corsproxy.io (another reliable option)
     try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      const proxyResponse = await fetch(proxyUrl);
+      console.log(`🌐 Trying corsproxy.io...`);
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      const proxyResponse = await fetch(corsProxyUrl);
       
       if (proxyResponse.ok) {
-        const proxyData = await proxyResponse.json();
-        // allorigins.win returns {contents: "...", status: {...}}
-        if (proxyData.contents) {
-          return JSON.parse(proxyData.contents);
-        }
+        const data = await proxyResponse.json();
+        console.log(`✅ Corsproxy.io successful`);
+        return data;
       }
     } catch (proxyError) {
-      console.log(`CORS proxy failed:`, proxyError.message);
+      console.log(`❌ Corsproxy.io error:`, proxyError.message);
     }
 
-    throw new Error('Both direct fetch and CORS proxy failed');
+    throw new Error('All fetch strategies failed (direct, cors-anywhere, corsproxy.io)');
   }
 
   async fetchTokenPrice(symbol, contractAddress, originalPrice = null) {

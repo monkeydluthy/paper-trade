@@ -12,7 +12,8 @@
     "https://frontend-api.pump.fun/*",
     "https://api.coingecko.com/*",
     "https://api.dexscreener.com/*",
-    "https://api.allorigins.win/*"
+    "https://cors-anywhere.herokuapp.com/*",
+    "https://corsproxy.io/*"
   ],
   "action": {
     "default_popup": "popup.html",
