@@ -1186,8 +1186,8 @@ class AxiomSnipeInjector {
     }
 
     // Also check for onclick handlers that might contain the full address
-    const allButtons = element.querySelectorAll('button');
-    for (const button of allButtons) {
+    const buttonsWithOnclick = element.querySelectorAll('button');
+    for (const button of buttonsWithOnclick) {
       const onclick = button.getAttribute('onclick');
       if (onclick) {
         console.log('🔍 Checking onclick handler:', onclick);
